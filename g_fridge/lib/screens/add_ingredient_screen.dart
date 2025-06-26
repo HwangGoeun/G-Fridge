@@ -180,9 +180,8 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                       });
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isSelected
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey[100],
+                      backgroundColor:
+                          isSelected ? Colors.blueGrey : Colors.grey[100],
                       foregroundColor:
                           isSelected ? Colors.white : Colors.black87,
                     ),

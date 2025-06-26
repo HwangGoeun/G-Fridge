@@ -3,7 +3,6 @@ import 'package:g_fridge/screens/add_ingredient_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/shopping_cart_provider.dart';
 import '../providers/ingredient_provider.dart'; // Import IngredientProvider to add to fridge
-import '../models/ingredient.dart';
 
 class ShoppingCartScreen extends StatefulWidget {
   const ShoppingCartScreen({super.key});
@@ -16,6 +15,7 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[200],
       appBar: AppBar(
         title: const Text('장바구니'),
         actions: [
@@ -34,7 +34,6 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
         ],
       ),
       body: Container(
-        color: Colors.white, // Set the background color of the body to white
         child: Consumer<ShoppingCartProvider>(
           builder: (context, cartProvider, child) {
             if (cartProvider.cartItems.isEmpty) {
@@ -43,6 +42,7 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
               );
             }
             return ListView.builder(
+              padding: const EdgeInsets.only(top: 5.0),
               itemCount: cartProvider.cartItems.length,
               itemBuilder: (context, index) {
                 final ingredient = cartProvider.cartItems[index];
@@ -52,7 +52,6 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
                   margin: const EdgeInsets.symmetric(
                       horizontal: 8.0, vertical: 4.0),
                   shape: RoundedRectangleBorder(
-                    side: const BorderSide(color: Colors.orange),
                     borderRadius: BorderRadius.circular(4.0),
                   ),
                   child: Padding(
@@ -71,7 +70,8 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
                           child: Text(
                             ingredient.name,
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                              fontSize: 16,
+                            ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),

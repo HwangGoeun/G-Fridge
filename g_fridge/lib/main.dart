@@ -22,11 +22,11 @@ class MyApp extends StatelessWidget {
                 ShoppingCartProvider()), // Add ShoppingCartProvider here
       ],
       child: MaterialApp(
-        title: 'Gordon Fridge',
+        title: 'G Fridge',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.grey),
           useMaterial3: true,
-          primaryColor: Colors.orange,
+          primaryColor: Colors.grey,
         ),
         home: const FridgeScreen(), // 앱 시작 시 보여줄 화면
       ),

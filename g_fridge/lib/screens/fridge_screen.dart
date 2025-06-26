@@ -32,7 +32,6 @@ class IngredientCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
-        // border: Border.all(color: Colors.grey, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,7 +53,7 @@ class IngredientCard extends StatelessWidget {
                     onPressed: onCart,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete, size: 28),
+                    icon: const Icon(Icons.close, size: 28),
                     onPressed: onDelete,
                   ),
                 ],
@@ -126,7 +125,7 @@ class _FridgeScreenState extends State<FridgeScreen>
       return Center(child: Text(emptyMessage));
     } else {
       return ListView.builder(
-        padding: const EdgeInsets.only(top: 8.0),
+        padding: const EdgeInsets.only(top: 3.0),
         itemCount: ingredients.length,
         itemBuilder: (context, index) {
           final ingredient = ingredients[index];
@@ -205,7 +204,7 @@ class _FridgeScreenState extends State<FridgeScreen>
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        title: const Text('Gordon Fridge'),
+        title: const Text('G Fridge'),
         actions: [
           // Shopping cart button
           IconButton(
