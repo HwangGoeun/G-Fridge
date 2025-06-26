@@ -1,41 +1,48 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ingredient.dart';
 
 class IngredientProvider extends ChangeNotifier {
-  // Initial list with test ingredients (refrigerated, frozen, room temperature)
-  final List<Ingredient> _ingredients = [
-    Ingredient(
-      name: '긴 냉장 재료 이름 테스트',
-      storageType: StorageType.refrigerated,
-      quantity: 1.0,
-      expirationDate: DateTime.now().add(const Duration(days: 7)), // 7일 후 만료
-    ),
-    Ingredient(
-      name: '긴 냉동 재료 이름 테스트',
-      storageType: StorageType.frozen,
-      quantity: 2.5,
-      expirationDate: DateTime.now().add(const Duration(days: 30)), // 30일 후 만료
-    ),
-    Ingredient(
-      name: '긴 실온 재료 이름 테스트',
-      storageType:
-          StorageType.roomTemperature, // Add room temperature ingredient
-      quantity: 3.0,
-      expirationDate: DateTime.now().add(const Duration(days: 3)), // 3일 후 만료
-    ),
-  ];
+  List<Ingredient> _ingredients = [];
+
+  static const _ingredientsKey = 'ingredients_list';
 
   List<Ingredient> get ingredients => _ingredients;
 
+  IngredientProvider() {
+    _loadIngredients();
+  }
+
+  Future<void> _loadIngredients() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? ingredientsString = prefs.getString(_ingredientsKey);
+    if (ingredientsString != null) {
+      final List<dynamic> ingredientsJson = jsonDecode(ingredientsString);
+      _ingredients = ingredientsJson
+          .map((json) => Ingredient.fromJson(json as Map<String, dynamic>))
+          .toList();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _saveIngredients() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String ingredientsString =
+        jsonEncode(_ingredients.map((i) => i.toJson()).toList());
+    await prefs.setString(_ingredientsKey, ingredientsString);
+  }
+
   void addIngredient(Ingredient ingredient) {
     _ingredients.add(ingredient);
-    // 상태 변화를 리스너에게 알립니다.
+    _saveIngredients();
     notifyListeners();
   }
 
   void increaseQuantity(int index) {
     if (index >= 0 && index < _ingredients.length) {
       _ingredients[index].quantity += 0.5;
+      _saveIngredients();
       notifyListeners();
     }
   }
@@ -44,6 +51,7 @@ class IngredientProvider extends ChangeNotifier {
     if (index >= 0 && index < _ingredients.length) {
       if (_ingredients[index].quantity > 0.5) {
         _ingredients[index].quantity -= 0.5;
+        _saveIngredients();
         notifyListeners();
       }
     }
@@ -52,6 +60,7 @@ class IngredientProvider extends ChangeNotifier {
   void removeIngredient(int index) {
     if (index >= 0 && index < _ingredients.length) {
       _ingredients.removeAt(index);
+      _saveIngredients();
       notifyListeners();
     }
   }
@@ -59,6 +68,7 @@ class IngredientProvider extends ChangeNotifier {
   void updateIngredient(int index, Ingredient ingredient) {
     if (index >= 0 && index < _ingredients.length) {
       _ingredients[index] = ingredient;
+      _saveIngredients();
       notifyListeners();
     }
   }
