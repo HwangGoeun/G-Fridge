@@ -4,14 +4,17 @@ import '../models/ingredient.dart';
 import '../providers/ingredient_provider.dart';
 import '../providers/shopping_cart_provider.dart';
 
-class AddIngredientScreen extends StatefulWidget {
-  const AddIngredientScreen({super.key});
+class EditIngredientScreen extends StatefulWidget {
+  final Ingredient ingredient;
+  final int ingredientIndex;
+  const EditIngredientScreen(
+      {super.key, required this.ingredient, required this.ingredientIndex});
 
   @override
-  State<AddIngredientScreen> createState() => _AddIngredientScreenState();
+  State<EditIngredientScreen> createState() => _EditIngredientScreenState();
 }
 
-class _AddIngredientScreenState extends State<AddIngredientScreen> {
+class _EditIngredientScreenState extends State<EditIngredientScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   double _quantity = 1.0;
@@ -24,6 +27,15 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
     StorageType.frozen: '냉동',
     StorageType.roomTemperature: '실온',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.text = widget.ingredient.name;
+    _quantity = widget.ingredient.quantity;
+    _selectedStorageType = widget.ingredient.storageType;
+    _selectedExpirationDate = widget.ingredient.expirationDate;
+  }
 
   @override
   void dispose() {
@@ -107,7 +119,7 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('재료 추가하기'),
+        title: const Text('재료 수정하기'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -194,46 +206,26 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
               // 유통기한 입력
               _buildExpirationDatePicker(),
               const SizedBox(height: 30),
-              // Add to Shopping Cart Button
-              ElevatedButton(
-                onPressed: _addIngredientToCart,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15.0),
-                  textStyle: const TextStyle(fontSize: 18),
-                ),
-                child: const Text('장바구니에 추가하기'),
-              ),
-              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
-                    final newIngredient = Ingredient(
+                    final updatedIngredient = Ingredient(
                       name: _nameController.text,
                       quantity: _quantity,
                       storageType: _selectedStorageType,
-                      expirationDate: _selectedExpirationDate, // nullable 허용
+                      expirationDate: _selectedExpirationDate,
                     );
                     Provider.of<IngredientProvider>(context, listen: false)
-                        .addIngredient(newIngredient);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('냉장고에 추가되었습니다!'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                    _nameController.clear();
-                    setState(() {
-                      _quantity = 1.0;
-                      _selectedStorageType = StorageType.refrigerated;
-                      _selectedExpirationDate = null;
-                    });
+                        .updateIngredient(
+                            widget.ingredientIndex, updatedIngredient);
+                    Navigator.pop(context); // 수정 후 화면 닫기
                   }
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15.0),
                   textStyle: const TextStyle(fontSize: 18),
                 ),
-                child: const Text('냉장고에 추가하기'),
+                child: const Text('수정 완료'),
               ),
             ],
           ),

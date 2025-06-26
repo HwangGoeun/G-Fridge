@@ -4,22 +4,25 @@ import '../models/ingredient.dart';
 class IngredientProvider extends ChangeNotifier {
   // Initial list with test ingredients (refrigerated, frozen, room temperature)
   final List<Ingredient> _ingredients = [
-    // Ingredient(
-    //   name: '긴 냉장 재료 이름 테스트',
-    //   storageType: StorageType.refrigerated,
-    //   quantity: 1.0,
-    // ),
-    // Ingredient(
-    //   name: '긴 냉동 재료 이름 테스트',
-    //   storageType: StorageType.frozen,
-    //   quantity: 2.5,
-    // ),
-    // Ingredient(
-    //   name: '긴 실온 재료 이름 테스트',
-    //   storageType:
-    //       StorageType.roomTemperature, // Add room temperature ingredient
-    //   quantity: 3.0,
-    // ),
+    Ingredient(
+      name: '긴 냉장 재료 이름 테스트',
+      storageType: StorageType.refrigerated,
+      quantity: 1.0,
+      expirationDate: DateTime.now().add(const Duration(days: 7)), // 7일 후 만료
+    ),
+    Ingredient(
+      name: '긴 냉동 재료 이름 테스트',
+      storageType: StorageType.frozen,
+      quantity: 2.5,
+      expirationDate: DateTime.now().add(const Duration(days: 30)), // 30일 후 만료
+    ),
+    Ingredient(
+      name: '긴 실온 재료 이름 테스트',
+      storageType:
+          StorageType.roomTemperature, // Add room temperature ingredient
+      quantity: 3.0,
+      expirationDate: DateTime.now().add(const Duration(days: 3)), // 3일 후 만료
+    ),
   ];
 
   List<Ingredient> get ingredients => _ingredients;
@@ -49,6 +52,13 @@ class IngredientProvider extends ChangeNotifier {
   void removeIngredient(int index) {
     if (index >= 0 && index < _ingredients.length) {
       _ingredients.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  void updateIngredient(int index, Ingredient ingredient) {
+    if (index >= 0 && index < _ingredients.length) {
+      _ingredients[index] = ingredient;
       notifyListeners();
     }
   }

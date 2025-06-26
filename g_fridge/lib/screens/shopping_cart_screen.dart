@@ -59,6 +59,13 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
                     padding: const EdgeInsets.all(8.0),
                     child: Row(
                       children: [
+                        // Delete Button
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () {
+                            cartProvider.removeItem(ingredient);
+                          },
+                        ),
                         // Ingredient Name
                         Expanded(
                           child: Text(
@@ -95,38 +102,24 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
                                 cartProvider.increaseQuantity(ingredient);
                               },
                             ),
-                            // Delete Button
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 20),
-                              onPressed: () {
-                                cartProvider.removeItem(ingredient);
-                              },
-                            ),
-                            const SizedBox(width: 8), // Spacing between buttons
-                            // Add to Fridge Button
-                            ElevatedButton(
-                              onPressed: () {
-                                // Add item to fridge provider and remove from cart
-                                Provider.of<IngredientProvider>(context,
-                                        listen: false)
-                                    .addIngredient(ingredient);
-                                cartProvider.removeItem(ingredient);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        '${ingredient.name}이 냉장고에 추가되었습니다.'),
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                textStyle: const TextStyle(fontSize: 14),
-                              ),
-                              child: const Text('추가'),
-                            ),
                           ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.kitchen_outlined), // 냉장고 아이콘
+                          onPressed: () {
+                            // Add item to fridge provider and remove from cart
+                            Provider.of<IngredientProvider>(context,
+                                    listen: false)
+                                .addIngredient(ingredient);
+                            cartProvider.removeItem(ingredient);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text('${ingredient.name}이 냉장고에 추가되었습니다.'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

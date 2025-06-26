@@ -18,7 +18,8 @@ class ShoppingCartProvider with ChangeNotifier {
         quantity: _cartItems[existingIndex].quantity +
             ingredient.quantity, // Add new quantity to existing
         storageType: _cartItems[existingIndex]
-            .storageType, // Preserve existing storage type, though it might not be strictly needed for cart
+            .storageType, // Preserve existing storage type
+        expirationDate: _cartItems[existingIndex].expirationDate, // 기존 유통기한 유지
       );
     } else {
       // If it doesn't exist, add the new item
@@ -39,6 +40,7 @@ class ShoppingCartProvider with ChangeNotifier {
         name: ingredient.name,
         quantity: ingredient.quantity + 0.5,
         storageType: ingredient.storageType, // Preserve storage type
+        expirationDate: ingredient.expirationDate, // 유통기한 유지
       );
       notifyListeners();
     }
@@ -51,6 +53,7 @@ class ShoppingCartProvider with ChangeNotifier {
         name: ingredient.name,
         quantity: ingredient.quantity - 0.5,
         storageType: ingredient.storageType, // Preserve storage type
+        expirationDate: ingredient.expirationDate, // 유통기한 유지
       );
       notifyListeners();
     }

@@ -4,6 +4,97 @@ import 'add_ingredient_screen.dart'; // 나중에 생성할 재료 추가 화면
 import 'shopping_cart_screen.dart'; // Import shopping cart screen
 import '../models/ingredient.dart';
 import '../providers/ingredient_provider.dart';
+import '../providers/shopping_cart_provider.dart';
+import 'edit_ingredient_screen.dart';
+
+// IngredientCard 위젯 추가
+class IngredientCard extends StatelessWidget {
+  final Ingredient ingredient;
+  final VoidCallback onIncrease;
+  final VoidCallback onDecrease;
+  final VoidCallback onDelete;
+  final VoidCallback onCart;
+
+  const IngredientCard({
+    super.key,
+    required this.ingredient,
+    required this.onIncrease,
+    required this.onDecrease,
+    required this.onDelete,
+    required this.onCart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 11),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        // border: Border.all(color: Colors.grey, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  ingredient.name,
+                  style: const TextStyle(fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_cart, size: 28),
+                    onPressed: onCart,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 28),
+                    onPressed: onDelete,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                ingredient.expirationDate != null
+                    ? '${ingredient.expirationDate!.year}/${ingredient.expirationDate!.month.toString().padLeft(2, '0')}/${ingredient.expirationDate!.day.toString().padLeft(2, '0')}'
+                    : '유통기한 없음',
+                style: const TextStyle(fontSize: 16),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, size: 28),
+                    onPressed: onIncrease,
+                  ),
+                  Text(
+                    ingredient.quantity.toString(),
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline, size: 28),
+                    onPressed: onDecrease,
+                  ),
+                ],
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+}
 
 class FridgeScreen extends StatefulWidget {
   const FridgeScreen({super.key});
@@ -35,54 +126,42 @@ class _FridgeScreenState extends State<FridgeScreen>
       return Center(child: Text(emptyMessage));
     } else {
       return ListView.builder(
+        padding: const EdgeInsets.only(top: 8.0),
         itemCount: ingredients.length,
         itemBuilder: (context, index) {
           final ingredient = ingredients[index];
           final originalIndex = provider.ingredients.indexOf(ingredient);
-          return ListTile(
-            title: Flexible(
-              child: Text(
-                ingredient.name,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove_circle_outline, size: 20),
-                  onPressed: () {
-                    provider.decreaseQuantity(originalIndex);
-                  },
-                  color: Colors.grey,
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditIngredientScreen(
+                      ingredient: ingredient, ingredientIndex: originalIndex),
                 ),
-                const SizedBox(width: 4),
-                SizedBox(
-                  width: 48,
-                  child: Text(
-                    '${ingredient.quantity}개',
-                    style: const TextStyle(fontSize: 16),
-                    textAlign: TextAlign.center,
+              );
+            },
+            child: IngredientCard(
+              ingredient: ingredient,
+              onIncrease: () => provider.increaseQuantity(originalIndex),
+              onDecrease: () => provider.decreaseQuantity(originalIndex),
+              onDelete: () => provider.removeIngredient(originalIndex),
+              onCart: () {
+                final ingredientForCart = Ingredient(
+                  name: ingredient.name,
+                  storageType: ingredient.storageType,
+                  quantity: 1.0, // 수량을 1.0으로 고정
+                  expirationDate: null, // 유통기한 null로 설정
+                );
+                Provider.of<ShoppingCartProvider>(context, listen: false)
+                    .addItem(ingredientForCart);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${ingredient.name}이(가) 장바구니에 추가되었습니다.'),
+                    duration: const Duration(seconds: 2),
                   ),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline, size: 20),
-                  onPressed: () {
-                    provider.increaseQuantity(originalIndex);
-                  },
-                  color: Colors.grey,
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.delete, size: 20),
-                  onPressed: () {
-                    provider.removeIngredient(originalIndex);
-                  },
-                  color: Colors.grey,
-                ),
-              ],
+                );
+              },
             ),
           );
         },
@@ -93,19 +172,38 @@ class _FridgeScreenState extends State<FridgeScreen>
   @override
   Widget build(BuildContext context) {
     final ingredientProvider = Provider.of<IngredientProvider>(context);
+
+    // 유통기한 정렬 함수
+    int compareIngredients(Ingredient a, Ingredient b) {
+      if (a.expirationDate == null && b.expirationDate == null) {
+        return 0; // 둘 다 유통기한 없으면 순서 유지
+      }
+      if (a.expirationDate == null) {
+        return 1; // a만 유통기한 없으면 b가 앞으로
+      }
+      if (b.expirationDate == null) {
+        return -1; // b만 유통기한 없으면 a가 앞으로
+      }
+      return a.expirationDate!.compareTo(b.expirationDate!); // 둘 다 있으면 날짜 비교
+    }
+
     final refrigeratedIngredients = ingredientProvider.ingredients
         .where(
             (ingredient) => ingredient.storageType == StorageType.refrigerated)
-        .toList();
+        .toList()
+      ..sort(compareIngredients);
     final frozenIngredients = ingredientProvider.ingredients
         .where((ingredient) => ingredient.storageType == StorageType.frozen)
-        .toList();
+        .toList()
+      ..sort(compareIngredients);
     final roomTemperatureIngredients = ingredientProvider.ingredients
         .where((ingredient) =>
             ingredient.storageType == StorageType.roomTemperature)
-        .toList();
+        .toList()
+      ..sort(compareIngredients);
 
     return Scaffold(
+      backgroundColor: Colors.grey[200],
       appBar: AppBar(
         title: const Text('Gordon Fridge'),
         actions: [
