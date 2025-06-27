@@ -9,17 +9,12 @@ class ShoppingCartProvider with ChangeNotifier {
   void addItem(Ingredient ingredient) {
     // Check if the item already exists in the cart
     int existingIndex =
-        _cartItems.indexWhere((item) => item.name == ingredient.name);
+        _cartItems.indexWhere((item) => item.id == ingredient.id);
 
     if (existingIndex != -1) {
       // If it exists, increase the quantity
-      _cartItems[existingIndex] = Ingredient(
-        name: _cartItems[existingIndex].name,
-        quantity: _cartItems[existingIndex].quantity +
-            ingredient.quantity, // Add new quantity to existing
-        storageType: _cartItems[existingIndex]
-            .storageType, // Preserve existing storage type
-        expirationDate: _cartItems[existingIndex].expirationDate, // 기존 유통기한 유지
+      _cartItems[existingIndex] = _cartItems[existingIndex].copyWith(
+        quantity: _cartItems[existingIndex].quantity + ingredient.quantity,
       );
     } else {
       // If it doesn't exist, add the new item
@@ -29,31 +24,25 @@ class ShoppingCartProvider with ChangeNotifier {
   }
 
   void removeItem(Ingredient ingredient) {
-    _cartItems.remove(ingredient);
+    _cartItems.removeWhere((item) => item.id == ingredient.id);
     notifyListeners();
   }
 
   void increaseQuantity(Ingredient ingredient) {
-    int index = _cartItems.indexOf(ingredient);
+    int index = _cartItems.indexWhere((item) => item.id == ingredient.id);
     if (index != -1) {
-      _cartItems[index] = Ingredient(
-        name: ingredient.name,
-        quantity: ingredient.quantity + 0.5,
-        storageType: ingredient.storageType, // Preserve storage type
-        expirationDate: ingredient.expirationDate, // 유통기한 유지
+      _cartItems[index] = _cartItems[index].copyWith(
+        quantity: _cartItems[index].quantity + 0.5,
       );
       notifyListeners();
     }
   }
 
   void decreaseQuantity(Ingredient ingredient) {
-    int index = _cartItems.indexOf(ingredient);
-    if (index != -1 && ingredient.quantity > 0.5) {
-      _cartItems[index] = Ingredient(
-        name: ingredient.name,
-        quantity: ingredient.quantity - 0.5,
-        storageType: ingredient.storageType, // Preserve storage type
-        expirationDate: ingredient.expirationDate, // 유통기한 유지
+    int index = _cartItems.indexWhere((item) => item.id == ingredient.id);
+    if (index != -1 && _cartItems[index].quantity > 0.5) {
+      _cartItems[index] = _cartItems[index].copyWith(
+        quantity: _cartItems[index].quantity - 0.5,
       );
       notifyListeners();
     }

@@ -86,6 +86,7 @@ class _EditIngredientScreenState extends State<EditIngredientScreen> {
   void _addIngredientToCart() {
     if (_formKey.currentState!.validate()) {
       final newIngredient = Ingredient(
+        id: widget.ingredient.id,
         name: _nameController.text,
         quantity: _quantity,
         storageType: _selectedStorageType,
@@ -210,6 +211,7 @@ class _EditIngredientScreenState extends State<EditIngredientScreen> {
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     final updatedIngredient = Ingredient(
+                      id: widget.ingredient.id,
                       name: _nameController.text,
                       quantity: _quantity,
                       storageType: _selectedStorageType,

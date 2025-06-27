@@ -6,89 +6,167 @@ import '../models/ingredient.dart';
 import '../providers/ingredient_provider.dart';
 import '../providers/shopping_cart_provider.dart';
 import 'edit_ingredient_screen.dart';
+import 'package:uuid/uuid.dart';
 
 // IngredientCard 위젯 추가
 class IngredientCard extends StatelessWidget {
   final Ingredient ingredient;
-  final VoidCallback onIncrease;
-  final VoidCallback onDecrease;
   final VoidCallback onDelete;
   final VoidCallback onCart;
+  final VoidCallback onIncrease;
+  final VoidCallback onDecrease;
+  final bool isInCart; // 장바구니에 추가된 상태
 
   const IngredientCard({
     super.key,
     required this.ingredient,
-    required this.onIncrease,
-    required this.onDecrease,
     required this.onDelete,
     required this.onCart,
+    required this.onIncrease,
+    required this.onDecrease,
+    this.isInCart = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 11),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final size = MediaQuery.of(context).size;
+    return AspectRatio(
+      aspectRatio: 0.6,
+      child: Stack(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  ingredient.name,
-                  style: const TextStyle(fontSize: 16),
-                  overflow: TextOverflow.ellipsis,
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(size.width * 0.045),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.08),
+                  spreadRadius: size.width * 0.01,
+                  blurRadius: size.width * 0.02,
+                  offset: Offset(0, size.height * 0.002),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: size.width * 0.03,
+                vertical: size.height * 0.006,
+              ),
+              child: Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: size.width * 0.05,
+                    bottom: size.width * 0.01,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.kitchen,
+                          size: size.width * 0.15, color: Colors.orangeAccent),
+                      SizedBox(height: size.height * 0.015),
+                      SizedBox(
+                        width: size.width * 0.32,
+                        child: Text(
+                          ingredient.name,
+                          style: TextStyle(
+                            fontSize: size.width * 0.05,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(height: size.height * 0.004),
+                      SizedBox(
+                        width: size.width * 0.37,
+                        child: Text(
+                          ingredient.expirationDate != null
+                              ? '${ingredient.expirationDate!.year}년 ${ingredient.expirationDate!.month}월 ${ingredient.expirationDate!.day}일'
+                              : '소비기한을 입력하세요',
+                          style: TextStyle(
+                              fontSize: size.width * 0.032, color: Colors.grey),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(Icons.remove_circle_outline,
+                                color: Colors.grey, size: size.width * 0.06),
+                            onPressed: ingredient.quantity == 0.5
+                                ? onDelete
+                                : onDecrease,
+                          ),
+                          SizedBox(
+                            child: Text(
+                              ingredient.quantity.toString(),
+                              style: TextStyle(
+                                  fontSize: size.width * 0.045,
+                                  fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(Icons.add_circle_outline,
+                                color: Colors.grey, size: size.width * 0.06),
+                            onPressed: onIncrease,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.shopping_cart, size: 28),
-                    onPressed: onCart,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 28),
-                    onPressed: onDelete,
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                ingredient.expirationDate != null
-                    ? '${ingredient.expirationDate!.year}/${ingredient.expirationDate!.month.toString().padLeft(2, '0')}/${ingredient.expirationDate!.day.toString().padLeft(2, '0')}'
-                    : '유통기한 없음',
-                style: const TextStyle(fontSize: 16),
+          if (ingredient.quantity == 0.5)
+            Positioned(
+              top: 0,
+              left: 0,
+              child: IconButton(
+                icon: Icon(
+                  isInCart ? Icons.shopping_cart : Icons.shopping_cart_outlined,
+                  color: isInCart ? Colors.green : Colors.grey,
+                  size: size.width * 0.06,
+                ),
+                onPressed: () {
+                  if (isInCart) {
+                    Provider.of<ShoppingCartProvider>(context, listen: false)
+                        .removeItem(ingredient);
+                  } else {
+                    onCart();
+                  }
+                },
+                splashRadius: size.width * 0.06,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: isInCart ? '장바구니에서 제거' : '장바구니에 추가',
               ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline, size: 28),
-                    onPressed: onIncrease,
-                  ),
-                  Text(
-                    ingredient.quantity.toString(),
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, size: 28),
-                    onPressed: onDecrease,
-                  ),
-                ],
-              ),
-            ],
-          )
+            ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              icon: Icon(Icons.close,
+                  color: Colors.grey, size: size.width * 0.06),
+              onPressed: onDelete,
+              splashRadius: size.width * 0.06,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              tooltip: '재료 삭제',
+            ),
+          ),
         ],
       ),
     );
@@ -124,12 +202,23 @@ class _FridgeScreenState extends State<FridgeScreen>
     if (ingredients.isEmpty) {
       return Center(child: Text(emptyMessage));
     } else {
-      return ListView.builder(
-        padding: const EdgeInsets.only(top: 3.0),
+      return GridView.builder(
+        padding:
+            const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          // 재료 카드 간 간격 조정
+          mainAxisSpacing: 4,
+          childAspectRatio: 0.78,
+        ),
         itemCount: ingredients.length,
         itemBuilder: (context, index) {
           final ingredient = ingredients[index];
           final originalIndex = provider.ingredients.indexOf(ingredient);
+          final cartProvider = Provider.of<ShoppingCartProvider>(context);
+          final isInCart =
+              cartProvider.cartItems.any((item) => item.id == ingredient.id);
           return GestureDetector(
             onTap: () {
               Navigator.push(
@@ -142,16 +231,11 @@ class _FridgeScreenState extends State<FridgeScreen>
             },
             child: IngredientCard(
               ingredient: ingredient,
+              onDelete: () => provider.removeIngredient(originalIndex),
               onIncrease: () => provider.increaseQuantity(originalIndex),
               onDecrease: () => provider.decreaseQuantity(originalIndex),
-              onDelete: () => provider.removeIngredient(originalIndex),
               onCart: () {
-                final ingredientForCart = Ingredient(
-                  name: ingredient.name,
-                  storageType: ingredient.storageType,
-                  quantity: 1.0, // 수량을 1.0으로 고정
-                  expirationDate: null, // 유통기한 null로 설정
-                );
+                final ingredientForCart = ingredient.copyWith(quantity: 1.0);
                 Provider.of<ShoppingCartProvider>(context, listen: false)
                     .addItem(ingredientForCart);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -161,6 +245,7 @@ class _FridgeScreenState extends State<FridgeScreen>
                   ),
                 );
               },
+              isInCart: isInCart,
             ),
           );
         },
@@ -202,13 +287,14 @@ class _FridgeScreenState extends State<FridgeScreen>
       ..sort(compareIngredients);
 
     return Scaffold(
-      backgroundColor: Colors.grey[200],
+      backgroundColor: Colors.grey[100], // 배경색을 더 밝은 회색으로
       appBar: AppBar(
         title: const Text('G Fridge'),
         actions: [
           // Shopping cart button
           IconButton(
-            icon: const Icon(Icons.shopping_cart), // Shopping cart icon
+            icon:
+                const Icon(Icons.shopping_cart_outlined), // Shopping cart icon
             onPressed: () {
               Navigator.push(
                 context,

@@ -3,6 +3,7 @@ import 'package:g_fridge/screens/add_ingredient_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/shopping_cart_provider.dart';
 import '../providers/ingredient_provider.dart'; // Import IngredientProvider to add to fridge
+import 'package:uuid/uuid.dart';
 
 class ShoppingCartScreen extends StatefulWidget {
   const ShoppingCartScreen({super.key});
@@ -110,7 +111,8 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
                             // Add item to fridge provider and remove from cart
                             Provider.of<IngredientProvider>(context,
                                     listen: false)
-                                .addIngredient(ingredient);
+                                .addIngredient(
+                                    ingredient.copyWith(id: const Uuid().v4()));
                             cartProvider.removeItem(ingredient);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(

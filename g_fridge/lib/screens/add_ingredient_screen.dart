@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/ingredient.dart';
 import '../providers/ingredient_provider.dart';
 import '../providers/shopping_cart_provider.dart';
+import 'package:uuid/uuid.dart';
 
 class AddIngredientScreen extends StatefulWidget {
   const AddIngredientScreen({super.key});
@@ -74,6 +75,7 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
   void _addIngredientToCart() {
     if (_formKey.currentState!.validate()) {
       final newIngredient = Ingredient(
+        id: const Uuid().v4(),
         name: _nameController.text,
         quantity: _quantity,
         storageType: _selectedStorageType,
@@ -207,6 +209,7 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     final newIngredient = Ingredient(
+                      id: const Uuid().v4(),
                       name: _nameController.text,
                       quantity: _quantity,
                       storageType: _selectedStorageType,
