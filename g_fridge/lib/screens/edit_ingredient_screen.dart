@@ -219,7 +219,7 @@ class _EditIngredientScreenState extends State<EditIngredientScreen> {
                     );
                     Provider.of<IngredientProvider>(context, listen: false)
                         .updateIngredient(
-                            widget.ingredientIndex, updatedIngredient);
+                            widget.ingredient.id, updatedIngredient);
                     Navigator.pop(context); // 수정 후 화면 닫기
                   }
                 },

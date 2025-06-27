@@ -194,16 +194,6 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
               const SizedBox(height: 20),
               // 유통기한 입력
               _buildExpirationDatePicker(),
-              const SizedBox(height: 30),
-              // Add to Shopping Cart Button
-              ElevatedButton(
-                onPressed: _addIngredientToCart,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15.0),
-                  textStyle: const TextStyle(fontSize: 18),
-                ),
-                child: const Text('장바구니에 추가하기'),
-              ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
@@ -236,6 +226,16 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                   textStyle: const TextStyle(fontSize: 18),
                 ),
                 child: const Text('냉장고에 추가하기'),
+              ),
+              const SizedBox(height: 30),
+              // Add to Shopping Cart Button
+              ElevatedButton(
+                onPressed: _addIngredientToCart,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 15.0),
+                  textStyle: const TextStyle(fontSize: 18),
+                ),
+                child: const Text('장바구니에 추가하기'),
               ),
             ],
           ),

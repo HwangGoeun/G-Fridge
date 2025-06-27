@@ -39,7 +39,8 @@ class IngredientProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void increaseQuantity(int index) {
+  void increaseQuantity(String id) {
+    final index = _ingredients.indexWhere((i) => i.id == id);
     if (index >= 0 && index < _ingredients.length) {
       _ingredients[index].quantity += 0.5;
       _saveIngredients();
@@ -47,17 +48,21 @@ class IngredientProvider extends ChangeNotifier {
     }
   }
 
-  void decreaseQuantity(int index) {
+  void decreaseQuantity(String id) {
+    final index = _ingredients.indexWhere((i) => i.id == id);
     if (index >= 0 && index < _ingredients.length) {
       if (_ingredients[index].quantity > 0.5) {
         _ingredients[index].quantity -= 0.5;
         _saveIngredients();
         notifyListeners();
+      } else {
+        _ingredients[index].quantity == 0.5;
       }
     }
   }
 
-  void removeIngredient(int index) {
+  void removeIngredient(String id) {
+    final index = _ingredients.indexWhere((i) => i.id == id);
     if (index >= 0 && index < _ingredients.length) {
       _ingredients.removeAt(index);
       _saveIngredients();
@@ -65,7 +70,8 @@ class IngredientProvider extends ChangeNotifier {
     }
   }
 
-  void updateIngredient(int index, Ingredient ingredient) {
+  void updateIngredient(String id, Ingredient ingredient) {
+    final index = _ingredients.indexWhere((i) => i.id == id);
     if (index >= 0 && index < _ingredients.length) {
       _ingredients[index] = ingredient;
       _saveIngredients();
