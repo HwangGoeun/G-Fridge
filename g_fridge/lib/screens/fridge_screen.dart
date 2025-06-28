@@ -47,7 +47,7 @@ class IngredientCard extends StatelessWidget {
       child: Stack(
         children: [
           Padding(
-            padding: EdgeInsets.only(top: size.width * 0.1),
+            padding: EdgeInsets.only(top: size.width * 0.13),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -55,18 +55,18 @@ class IngredientCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
+                    // Padding(
+                    //   padding: const EdgeInsets.all(5.0),
+                    //   child: Icon(Icons.circle,
+                    //       size: size.width * 0.15, color: Colors.blueGrey),
+                    // ),
                     Padding(
-                      padding: const EdgeInsets.all(5.0),
-                      child: Icon(Icons.circle,
-                          size: size.width * 0.15, color: Colors.blueGrey),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(left: size.width * 0.01),
+                      padding: EdgeInsets.only(left: size.width * 0.05),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(
-                            width: size.width * 0.65,
+                            width: size.width * 0.75,
                             child: Text(
                               ingredient.name,
                               style: TextStyle(
@@ -95,41 +95,45 @@ class IngredientCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: Icon(Icons.remove_circle_outline,
-                          color: Colors.grey, size: size.width * 0.06),
-                      onPressed: onDecrease,
-                    ),
-                    SizedBox(
-                      child: Text(
-                        ingredient.quantity.toString(),
-                        style: TextStyle(
-                            fontSize: size.width * 0.045,
-                            fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
+                Padding(
+                  padding: EdgeInsets.only(
+                      right: size.width * 0.01, bottom: size.width * 0.01),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: Icon(Icons.remove_circle_outline,
+                            color: Colors.grey, size: size.width * 0.06),
+                        onPressed: onDecrease,
                       ),
-                    ),
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: Icon(Icons.add_circle_outline,
-                          color: Colors.grey, size: size.width * 0.06),
-                      onPressed: onIncrease,
-                    ),
-                  ],
+                      SizedBox(
+                        child: Text(
+                          ingredient.quantity.toString(),
+                          style: TextStyle(
+                              fontSize: size.width * 0.045,
+                              fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: Icon(Icons.add_circle_outline,
+                            color: Colors.grey, size: size.width * 0.06),
+                        onPressed: onIncrease,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
           Positioned(
-            top: 0,
-            left: 0,
+            top: size.width * 0.01,
+            left: size.width * 0.02,
             child: IconButton(
               icon: Icon(
                 isInCart ? Icons.shopping_cart : Icons.shopping_cart_outlined,
@@ -157,8 +161,8 @@ class IngredientCard extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: 0,
-            right: 0,
+            top: size.width * 0.01,
+            right: size.width * 0.005,
             child: IconButton(
               icon: Icon(Icons.close,
                   color: Colors.grey, size: size.width * 0.06),
