@@ -27,9 +27,27 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'G Fridge',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.grey),
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2196F3)),
           useMaterial3: true,
-          primaryColor: Colors.grey,
+          primaryColor: const Color(0xFF2196F3),
+          datePickerTheme: DatePickerThemeData(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            headerBackgroundColor: Colors.blue[600],
+            headerForegroundColor: Colors.white,
+            dayForegroundColor: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return Colors.white;
+              }
+              return Colors.black87;
+            }),
+            dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return Colors.blue[600];
+              }
+              return Colors.transparent;
+            }),
+          ),
         ),
         home: const FridgeScreen(), // 앱 시작 시 보여줄 화면
       ),

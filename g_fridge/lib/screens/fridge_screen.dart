@@ -57,11 +57,6 @@ class IngredientCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    // Padding(
-                    //   padding: const EdgeInsets.all(5.0),
-                    //   child: Icon(Icons.circle,
-                    //       size: size.width * 0.15, color: Colors.blueGrey),
-                    // ),
                     Padding(
                       padding: EdgeInsets.only(left: size.width * 0.05),
                       child: Column(
@@ -460,7 +455,10 @@ class _FridgeScreenState extends State<FridgeScreen>
               // Drawer 헤더
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.only(top: 50, bottom: 20),
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).size.height * 0.08, // 7% 만큼
+                  bottom: MediaQuery.of(context).size.height * 0.025, // 2.5% 만큼
+                ),
                 decoration: BoxDecoration(
                   color: Colors.blue[600],
                   boxShadow: [
@@ -495,7 +493,8 @@ class _FridgeScreenState extends State<FridgeScreen>
                         color: Colors.blue[600],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.015),
                     const Text(
                       'G Fridge',
                       style: TextStyle(
@@ -504,14 +503,15 @@ class _FridgeScreenState extends State<FridgeScreen>
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '나의 냉장고 관리',
-                      style: TextStyle(
-                        color: Colors.blue[100],
-                        fontSize: 14,
-                      ),
-                    ),
+                    SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.005),
+                    // Text(
+                    //   '나의 냉장고 관리',
+                    //   style: TextStyle(
+                    //     color: Colors.blue[100],
+                    //     fontSize: 14,
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -556,37 +556,37 @@ class _FridgeScreenState extends State<FridgeScreen>
                       );
                     }).toList(),
                     const Divider(height: 32),
-                    // 새 냉장고 추가 버튼
-                    ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.add,
-                          color: Colors.grey[600],
-                          size: 20,
-                        ),
-                      ),
-                      title: const Text(
-                        '새 냉장고 추가',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context); // 드로어 닫기
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('새 냉장고 추가 기능은 준비 중입니다.'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                    ),
+                    // // 새 냉장고 추가 버튼
+                    // ListTile(
+                    //   leading: Container(
+                    //     width: 40,
+                    //     height: 40,
+                    //     decoration: BoxDecoration(
+                    //       color: Colors.grey[100],
+                    //       borderRadius: BorderRadius.circular(8),
+                    //     ),
+                    //     child: Icon(
+                    //       Icons.add,
+                    //       color: Colors.grey[600],
+                    //       size: 20,
+                    //     ),
+                    //   ),
+                    //   title: const Text(
+                    //     '새 냉장고 추가',
+                    //     style: TextStyle(
+                    //       fontWeight: FontWeight.w500,
+                    //     ),
+                    //   ),
+                    //   onTap: () {
+                    //     Navigator.pop(context); // 드로어 닫기
+                    //     ScaffoldMessenger.of(context).showSnackBar(
+                    //       const SnackBar(
+                    //         content: Text('새 냉장고 추가 기능은 준비 중입니다.'),
+                    //         duration: Duration(seconds: 2),
+                    //       ),
+                    //     );
+                    //   },
+                    // ),
                   ],
                 ),
               ),
@@ -612,6 +612,9 @@ class _FridgeScreenState extends State<FridgeScreen>
         ),
       ),
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black87,
         title: Text(currentFridge?.name ?? 'G Fridge'),
         actions: [
           // Shopping cart button

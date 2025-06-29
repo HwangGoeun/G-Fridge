@@ -99,19 +99,29 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: '재료 이름',
-                      border: InputBorder.none,
-                      prefixIcon: Icon(Icons.inventory_2_outlined),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '재료 이름을 입력해주세요.';
-                      }
-                      return null;
-                    },
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inventory_2_outlined, color: Colors.grey[600]),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: '재료 이름',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 0),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return '재료 이름을 입력해주세요.';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
