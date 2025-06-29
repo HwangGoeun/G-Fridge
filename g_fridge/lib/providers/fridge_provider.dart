@@ -1,11 +1,15 @@
 import 'package:flutter/foundation.dart';
 import '../models/fridge.dart';
 import '../models/ingredient.dart';
+import '../utils/device_id_util.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FridgeProvider with ChangeNotifier {
   List<Fridge> _fridges = [];
   final Map<String, List<Ingredient>> _fridgeIngredients = {};
   String _currentFridgeId = '';
+  static const _fridgeIngredientsKey = 'fridge_ingredients';
 
   // Getters
   List<Fridge> get fridges {
@@ -46,43 +50,46 @@ class FridgeProvider with ChangeNotifier {
   }
 
   // 초기화
-  void initialize() {
+  Future<void> initialize() async {
     if (_fridges.isEmpty) {
-      // 기본 냉장고들 추가
+      final deviceId = await DeviceIdUtil.getDeviceId();
       final defaultFridges = [
         Fridge(
           id: 'home',
           name: '우리집 냉장고',
           type: '가정용',
           location: '부엌',
+          creatorId: deviceId,
+          members: [deviceId],
         ),
         Fridge(
           id: 'office',
           name: '회사 냉장고',
           type: '사무실용',
           location: '사무실',
+          creatorId: deviceId,
+          members: [deviceId],
         ),
         Fridge(
           id: 'dorm',
           name: '기숙사 냉장고',
           type: '기숙사용',
           location: '기숙사',
+          creatorId: deviceId,
+          members: [deviceId],
         ),
       ];
-
       _fridges = defaultFridges;
       _currentFridgeId = defaultFridges.first.id;
-
-      // 각 냉장고별로 빈 재료 리스트 초기화
       for (var fridge in defaultFridges) {
         _fridgeIngredients[fridge.id] = [];
       }
-
+      await saveFridgeIngredients();
       notifyListeners();
     } else {
-      // 이미 냉장고가 있으면 최소 하나는 있는지 확인
       ensureMinimumFridge();
     }
+    await loadFridgeIngredients();
   }
 
   // 현재 냉장고 변경
@@ -94,9 +101,12 @@ class FridgeProvider with ChangeNotifier {
   }
 
   // 냉장고 추가
-  void addFridge(Fridge fridge) {
-    _fridges.add(fridge);
-    _fridgeIngredients[fridge.id] = [];
+  Future<void> addFridge(Fridge fridge) async {
+    final deviceId = await DeviceIdUtil.getDeviceId();
+    final fridgeWithCreator =
+        fridge.copyWith(creatorId: deviceId, members: [deviceId]);
+    _fridges.add(fridgeWithCreator);
+    _fridgeIngredients[fridgeWithCreator.id] = [];
     notifyListeners();
   }
 
@@ -119,13 +129,16 @@ class FridgeProvider with ChangeNotifier {
   }
 
   // 기본 냉장고 생성
-  void createDefaultFridge() {
+  Future<void> createDefaultFridge() async {
+    final deviceId = await DeviceIdUtil.getDeviceId();
     if (_fridges.isEmpty) {
       final defaultFridge = Fridge(
         id: 'default',
         name: '기본 냉장고',
         type: '가정용',
         location: '부엌',
+        creatorId: deviceId,
+        members: [deviceId],
       );
       _fridges.add(defaultFridge);
       _fridgeIngredients[defaultFridge.id] = [];
@@ -148,6 +161,7 @@ class FridgeProvider with ChangeNotifier {
         _fridgeIngredients[_currentFridgeId] = [];
       }
       _fridgeIngredients[_currentFridgeId]!.add(ingredient);
+      saveFridgeIngredients();
       notifyListeners();
     }
   }
@@ -158,6 +172,7 @@ class FridgeProvider with ChangeNotifier {
       _fridgeIngredients[_currentFridgeId]?.removeWhere(
         (ingredient) => ingredient.id == ingredientId,
       );
+      saveFridgeIngredients();
       notifyListeners();
     }
   }
@@ -172,6 +187,7 @@ class FridgeProvider with ChangeNotifier {
           ingredients[index] = ingredients[index].copyWith(
             quantity: ingredients[index].quantity + 1,
           );
+          saveFridgeIngredients();
           notifyListeners();
         }
       }
@@ -184,10 +200,11 @@ class FridgeProvider with ChangeNotifier {
       final ingredients = _fridgeIngredients[_currentFridgeId];
       if (ingredients != null) {
         final index = ingredients.indexWhere((i) => i.id == ingredientId);
-        if (index != -1 && ingredients[index].quantity > 1) {
+        if (index != -1 && ingredients[index].quantity > 0.5) {
           ingredients[index] = ingredients[index].copyWith(
-            quantity: ingredients[index].quantity - 1,
+            quantity: ingredients[index].quantity - 0.5,
           );
+          saveFridgeIngredients();
           notifyListeners();
         }
       }
@@ -200,6 +217,7 @@ class FridgeProvider with ChangeNotifier {
       _fridgeIngredients[fridgeId] = [];
     }
     _fridgeIngredients[fridgeId]!.add(ingredient);
+    saveFridgeIngredients();
     notifyListeners();
   }
 
@@ -208,6 +226,47 @@ class FridgeProvider with ChangeNotifier {
     _fridgeIngredients[fridgeId]?.removeWhere(
       (ingredient) => ingredient.id == ingredientId,
     );
+    saveFridgeIngredients();
     notifyListeners();
+  }
+
+  // 냉장고 이름 변경
+  void updateFridgeName(String fridgeId, String newName) {
+    final index = _fridges.indexWhere((f) => f.id == fridgeId);
+    if (index != -1) {
+      _fridges[index] = _fridges[index].copyWith(name: newName);
+      notifyListeners();
+    }
+  }
+
+  // 냉장고 카테고리(타입) 변경
+  void updateFridgeType(String fridgeId, String newType) {
+    final index = _fridges.indexWhere((f) => f.id == fridgeId);
+    if (index != -1) {
+      _fridges[index] = _fridges[index].copyWith(type: newType);
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveFridgeIngredients() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = _fridgeIngredients.map((fridgeId, ingredients) =>
+        MapEntry(fridgeId, ingredients.map((i) => i.toJson()).toList()));
+    await prefs.setString(_fridgeIngredientsKey, jsonEncode(data));
+  }
+
+  Future<void> loadFridgeIngredients() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? dataString = prefs.getString(_fridgeIngredientsKey);
+    if (dataString != null) {
+      final Map<String, dynamic> data = jsonDecode(dataString);
+      _fridgeIngredients.clear();
+      data.forEach((fridgeId, ingredientList) {
+        _fridgeIngredients[fridgeId] = (ingredientList as List)
+            .map((i) => Ingredient.fromJson(i as Map<String, dynamic>))
+            .toList();
+      });
+      notifyListeners();
+    }
   }
 }

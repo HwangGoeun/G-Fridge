@@ -113,8 +113,8 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
                             final fridgeProvider = Provider.of<FridgeProvider>(
                                 context,
                                 listen: false);
-                            final newIngredient =
-                                ingredient.copyWith(id: const Uuid().v4());
+                            final newIngredient = ingredient.copyWith(
+                                id: const Uuid().v4(), expirationDate: null);
                             fridgeProvider
                                 .addIngredientToCurrentFridge(newIngredient);
                             cartProvider.removeItem(ingredient);

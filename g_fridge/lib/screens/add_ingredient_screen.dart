@@ -355,7 +355,10 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                                 fontSize: 16,
                                 color: _selectedExpirationDate == null
                                     ? Colors.grey[500]
-                                    : Colors.grey[700],
+                                    : (_selectedExpirationDate!
+                                            .isBefore(DateTime.now())
+                                        ? Colors.red
+                                        : Colors.grey[700]),
                               ),
                             ),
                             ElevatedButton.icon(
@@ -364,7 +367,7 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                                 final picked = await showDatePicker(
                                   context: context,
                                   initialDate: _selectedExpirationDate ?? now,
-                                  firstDate: now,
+                                  firstDate: DateTime(now.year - 5),
                                   lastDate: DateTime(now.year + 5),
                                 );
                                 if (picked != null) {

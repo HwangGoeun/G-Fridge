@@ -38,6 +38,7 @@ dependencies:
   shared_preferences: ^2.2.3
   uuid: ^4.2.1
   flutter_slidable: ^3.0.0
+  dropdown_button2: ^2.3.9
 
 dev_dependencies:
   flutter_test:

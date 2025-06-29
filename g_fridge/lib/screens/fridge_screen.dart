@@ -10,6 +10,7 @@ import '../providers/fridge_provider.dart'; // Import FridgeProvider
 import 'edit_ingredient_screen.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'fridge_info_screen.dart'; // 냉장고 정보 화면 import
 
 // IngredientCard 위젯 추가
 class IngredientCard extends StatelessWidget {
@@ -76,16 +77,74 @@ class IngredientCard extends StatelessWidget {
                           ),
                           SizedBox(height: size.height * 0.004),
                           SizedBox(
-                            child: Text(
-                              ingredient.expirationDate != null
-                                  ? '${ingredient.expirationDate!.year}년 ${ingredient.expirationDate!.month}월 ${ingredient.expirationDate!.day}일'
-                                  : '소비기한을 입력하세요',
-                              style: TextStyle(
-                                  fontSize: size.width * 0.032,
-                                  color: Colors.grey),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            width: size.width * 0.85,
+                            child: ingredient.expirationDate != null
+                                ? (() {
+                                    final now = DateTime.now();
+                                    final exp = ingredient.expirationDate!;
+                                    final expDate =
+                                        DateTime(exp.year, exp.month, exp.day);
+                                    final today =
+                                        DateTime(now.year, now.month, now.day);
+                                    final daysLeft =
+                                        expDate.difference(today).inDays;
+                                    return Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '${exp.year}년 ${exp.month}월 ${exp.day}일',
+                                          style: TextStyle(
+                                            fontSize: size.width * 0.032,
+                                            color: (expDate.isBefore(today) ||
+                                                    expDate.isAtSameMomentAs(
+                                                        today))
+                                                ? Colors.red
+                                                : Colors.grey,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (expDate.isBefore(today))
+                                          Text(
+                                            '${today.difference(expDate).inDays}일 지남',
+                                            style: TextStyle(
+                                              fontSize: size.width * 0.032,
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          )
+                                        else if (expDate
+                                            .isAtSameMomentAs(today))
+                                          Text(
+                                            '오늘까지',
+                                            style: TextStyle(
+                                              fontSize: size.width * 0.032,
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          )
+                                        else if (daysLeft <= 5)
+                                          Text(
+                                            '$daysLeft일 남음',
+                                            style: TextStyle(
+                                              fontSize: size.width * 0.032,
+                                              color: Colors.green,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  })()
+                                : Text(
+                                    '소비기한을 입력하세요',
+                                    style: TextStyle(
+                                      fontSize: size.width * 0.032,
+                                      color: Colors.grey,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                           ),
                         ],
                       ),
@@ -187,6 +246,7 @@ class _FridgeScreenState extends State<FridgeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
@@ -195,6 +255,12 @@ class _FridgeScreenState extends State<FridgeScreen>
     // FridgeProvider 초기화
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<FridgeProvider>(context, listen: false).initialize();
+    });
+  }
+
+  void _onBottomNavTapped(int index) {
+    setState(() {
+      _selectedTabIndex = index;
     });
   }
 
@@ -214,7 +280,7 @@ class _FridgeScreenState extends State<FridgeScreen>
       return Center(child: Text(emptyMessage));
     } else {
       return ListView.separated(
-        padding: const EdgeInsets.only(top: 15),
+        padding: const EdgeInsets.only(top: 15, bottom: 15),
         itemCount: ingredients.length,
         itemBuilder: (context, index) {
           final ingredient = ingredients[index];
@@ -245,9 +311,12 @@ class _FridgeScreenState extends State<FridgeScreen>
                         ),
                       );
                     } else {
-                      final ingredientForCart = ingredient.copyWith(
+                      final ingredientForCart = Ingredient(
                         id: ingredient.id,
+                        name: ingredient.name,
+                        storageType: ingredient.storageType,
                         quantity: 1.0,
+                        expirationDate: null,
                       );
                       cartProvider.addItem(ingredientForCart);
                       setState(() {});
@@ -295,9 +364,12 @@ class _FridgeScreenState extends State<FridgeScreen>
                       onDecrease: () => fridgeProvider
                           .decreaseQuantityInCurrentFridge(ingredient.id),
                       onCart: () {
-                        final ingredientForCart = ingredient.copyWith(
+                        final ingredientForCart = Ingredient(
                           id: ingredient.id,
+                          name: ingredient.name,
+                          storageType: ingredient.storageType,
                           quantity: 1.0,
+                          expirationDate: null,
                         );
                         Provider.of<ShoppingCartProvider>(context,
                                 listen: false)
@@ -642,29 +714,43 @@ class _FridgeScreenState extends State<FridgeScreen>
             tooltip: '재료 추가',
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '냉장'),
-            Tab(text: '냉동'),
-            Tab(text: '실온'),
-          ],
-        ),
+        bottom: _selectedTabIndex == 0
+            ? TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: '냉장'),
+                  Tab(text: '냉동'),
+                  Tab(text: '실온'),
+                ],
+              )
+            : null,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Refrigerated Ingredients View
-          _buildIngredientListView(refrigeratedIngredients, ingredientProvider,
-              fridgeProvider, '냉장 재료가 없습니다.'),
-
-          // Frozen Ingredients View
-          _buildIngredientListView(frozenIngredients, ingredientProvider,
-              fridgeProvider, '냉동 재료가 없습니다.'),
-
-          // Room Temperature Ingredients View
-          _buildIngredientListView(roomTemperatureIngredients,
-              ingredientProvider, fridgeProvider, '실온 재료가 없습니다.'),
+      body: _selectedTabIndex == 0
+          ? TabBarView(
+              controller: _tabController,
+              children: [
+                _buildIngredientListView(refrigeratedIngredients,
+                    ingredientProvider, fridgeProvider, '냉장 재료가 없습니다.'),
+                _buildIngredientListView(frozenIngredients, ingredientProvider,
+                    fridgeProvider, '냉동 재료가 없습니다.'),
+                _buildIngredientListView(roomTemperatureIngredients,
+                    ingredientProvider, fridgeProvider, '실온 재료가 없습니다.'),
+              ],
+            )
+          : const FridgeInfoScreen(),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedTabIndex,
+        onTap: _onBottomNavTapped,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.kitchen),
+            label: '냉장고',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.info_outline),
+            label: '냉장고 정보',
+          ),
         ],
       ),
     );

@@ -112,19 +112,19 @@ class FridgeListScreen extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // 새 냉장고 추가 기능 (나중에 구현)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('새 냉장고 추가 기능은 준비 중입니다.'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-        backgroundColor: Colors.blue[600],
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: () {
+      //     // 새 냉장고 추가 기능 (나중에 구현)
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       const SnackBar(
+      //         content: Text('새 냉장고 추가 기능은 준비 중입니다.'),
+      //         duration: Duration(seconds: 2),
+      //       ),
+      //     );
+      //   },
+      //   backgroundColor: Colors.blue[600],
+      //   child: const Icon(Icons.add, color: Colors.white),
+      // ),
     );
   }
 }
