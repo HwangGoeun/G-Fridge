@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'add_ingredient_screen.dart'; // 나중에 생성할 재료 추가 화면 파일
-import 'shopping_cart_screen.dart'; // Import shopping cart screen
-import 'fridge_list_screen.dart'; // Import fridge list screen
+import 'add_ingredient_screen.dart';
+import 'shopping_cart_screen.dart';
+import 'fridge_list_screen.dart';
 import '../models/ingredient.dart';
 import '../providers/ingredient_provider.dart';
 import '../providers/shopping_cart_provider.dart';
-import '../providers/fridge_provider.dart'; // Import FridgeProvider
 import 'edit_ingredient_screen.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -57,11 +56,6 @@ class IngredientCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    // Padding(
-                    //   padding: const EdgeInsets.all(5.0),
-                    //   child: Icon(Icons.circle,
-                    //       size: size.width * 0.15, color: Colors.blueGrey),
-                    // ),
                     Padding(
                       padding: EdgeInsets.only(left: size.width * 0.05),
                       child: Column(
@@ -146,12 +140,6 @@ class IngredientCard extends StatelessWidget {
                 if (isInCart) {
                   Provider.of<ShoppingCartProvider>(context, listen: false)
                       .removeItem(ingredient);
-                  // ScaffoldMessenger.of(context).showSnackBar(
-                  //   SnackBar(
-                  //     content: Text('${ingredient.name}이(가) 장바구니에서 제거되었습니다.'),
-                  //     duration: const Duration(seconds: 2),
-                  //   ),
-                  // );
                 } else {
                   onCart();
                 }
@@ -191,16 +179,11 @@ class FridgeScreen extends StatefulWidget {
 class _FridgeScreenState extends State<FridgeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    // FridgeProvider 초기화
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<FridgeProvider>(context, listen: false).initialize();
-    });
   }
 
   @override
@@ -210,11 +193,8 @@ class _FridgeScreenState extends State<FridgeScreen>
   }
 
   // Helper method to build ingredient list view
-  Widget _buildIngredientListView(
-      List<Ingredient> ingredients,
-      IngredientProvider provider,
-      FridgeProvider fridgeProvider,
-      String emptyMessage) {
+  Widget _buildIngredientListView(List<Ingredient> ingredients,
+      IngredientProvider provider, String emptyMessage) {
     if (ingredients.isEmpty) {
       return Center(child: Text(emptyMessage));
     } else {
@@ -293,12 +273,11 @@ class _FridgeScreenState extends State<FridgeScreen>
                   children: [
                     IngredientCard(
                       ingredient: ingredient,
-                      onDelete: () => fridgeProvider
-                          .removeIngredientFromCurrentFridge(ingredient.id),
-                      onIncrease: () => fridgeProvider
-                          .increaseQuantityInCurrentFridge(ingredient.id),
-                      onDecrease: () => fridgeProvider
-                          .decreaseQuantityInCurrentFridge(ingredient.id),
+                      onDelete: () => provider.removeIngredient(ingredient.id),
+                      onIncrease: () =>
+                          provider.increaseQuantity(ingredient.id),
+                      onDecrease: () =>
+                          provider.decreaseQuantity(ingredient.id),
                       onCart: () {
                         final ingredientForCart = ingredient.copyWith(
                           id: ingredient.id,
@@ -366,18 +345,10 @@ class _FridgeScreenState extends State<FridgeScreen>
         ],
       ),
       onTap: () {
-        // FridgeProvider를 사용하여 현재 냉장고 변경
-        final fridgeProvider =
-            Provider.of<FridgeProvider>(context, listen: false);
-        final selectedFridge = fridgeProvider.fridges.firstWhere(
-          (fridge) => fridge.name == name,
-          orElse: () => fridgeProvider.fridges.first,
-        );
-        fridgeProvider.setCurrentFridge(selectedFridge.id);
         Navigator.pop(context); // 드로어 닫기
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$name로 이동했습니다.'),
+            content: Text('$name가 선택되었습니다.'),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -385,73 +356,41 @@ class _FridgeScreenState extends State<FridgeScreen>
     );
   }
 
-  // Helper method to get fridge icon based on type
-  IconData _getFridgeIcon(String type) {
-    switch (type) {
-      case '가정용':
-        return Icons.home;
-      case '사무실용':
-        return Icons.business;
-      case '기숙사용':
-        return Icons.apartment;
-      default:
-        return Icons.kitchen;
-    }
-  }
-
-  // Helper method to get fridge color based on type
-  Color _getFridgeColor(String type) {
-    switch (type) {
-      case '가정용':
-        return Colors.blue[600]!;
-      case '사무실용':
-        return Colors.green[600]!;
-      case '기숙사용':
-        return Colors.orange[600]!;
-      default:
-        return Colors.grey[600]!;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final ingredientProvider = Provider.of<IngredientProvider>(context);
-    final fridgeProvider = Provider.of<FridgeProvider>(context);
-    final currentFridge = fridgeProvider.currentFridge;
-    final currentIngredients = fridgeProvider.currentFridgeIngredients;
 
     // 유통기한 정렬 함수
     int compareIngredients(Ingredient a, Ingredient b) {
       if (a.expirationDate == null && b.expirationDate == null) {
-        return 0; // 둘 다 유통기한 없으면 순서 유지
+        return 0;
       }
       if (a.expirationDate == null) {
-        return 1; // a만 유통기한 없으면 b가 앞으로
+        return 1;
       }
       if (b.expirationDate == null) {
-        return -1; // b만 유통기한 없으면 a가 앞으로
+        return -1;
       }
-      return a.expirationDate!.compareTo(b.expirationDate!); // 둘 다 있으면 날짜 비교
+      return a.expirationDate!.compareTo(b.expirationDate!);
     }
 
-    final refrigeratedIngredients = currentIngredients
+    final refrigeratedIngredients = ingredientProvider.ingredients
         .where(
             (ingredient) => ingredient.storageType == StorageType.refrigerated)
         .toList()
       ..sort(compareIngredients);
-    final frozenIngredients = currentIngredients
+    final frozenIngredients = ingredientProvider.ingredients
         .where((ingredient) => ingredient.storageType == StorageType.frozen)
         .toList()
       ..sort(compareIngredients);
-    final roomTemperatureIngredients = currentIngredients
+    final roomTemperatureIngredients = ingredientProvider.ingredients
         .where((ingredient) =>
             ingredient.storageType == StorageType.roomTemperature)
         .toList()
       ..sort(compareIngredients);
 
     return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.grey[100], // 배경색을 더 밝은 회색으로
+      backgroundColor: Colors.grey[100],
       drawer: Drawer(
         child: Container(
           color: Colors.white,
@@ -543,18 +482,30 @@ class _FridgeScreenState extends State<FridgeScreen>
                       ),
                     ),
                     // 냉장고 아이템들
-                    ...fridgeProvider.fridges.map((fridge) {
-                      final ingredients =
-                          fridgeProvider.getIngredientsForFridge(fridge.id);
-                      return _buildFridgeItem(
-                        context,
-                        fridge.name,
-                        '${fridge.type} • ${fridge.location}',
-                        '재료 ${ingredients.length}개',
-                        _getFridgeIcon(fridge.type),
-                        _getFridgeColor(fridge.type),
-                      );
-                    }).toList(),
+                    _buildFridgeItem(
+                      context,
+                      '우리집 냉장고',
+                      '가정용 • 부엌',
+                      '재료 12개',
+                      Icons.home,
+                      Colors.blue[600]!,
+                    ),
+                    _buildFridgeItem(
+                      context,
+                      '회사 냉장고',
+                      '사무실용 • 사무실',
+                      '재료 8개',
+                      Icons.business,
+                      Colors.green[600]!,
+                    ),
+                    _buildFridgeItem(
+                      context,
+                      '기숙사 냉장고',
+                      '기숙사용 • 기숙사',
+                      '재료 15개',
+                      Icons.apartment,
+                      Colors.orange[600]!,
+                    ),
                     const Divider(height: 32),
                     // 새 냉장고 추가 버튼
                     ListTile(
@@ -612,7 +563,7 @@ class _FridgeScreenState extends State<FridgeScreen>
         ),
       ),
       appBar: AppBar(
-        title: Text(currentFridge?.name ?? 'G Fridge'),
+        title: const Text('G Fridge'),
         actions: [
           // Shopping cart button
           IconButton(
@@ -652,16 +603,16 @@ class _FridgeScreenState extends State<FridgeScreen>
         controller: _tabController,
         children: [
           // Refrigerated Ingredients View
-          _buildIngredientListView(refrigeratedIngredients, ingredientProvider,
-              fridgeProvider, '냉장 재료가 없습니다.'),
+          _buildIngredientListView(
+              refrigeratedIngredients, ingredientProvider, '냉장 재료가 없습니다.'),
 
           // Frozen Ingredients View
-          _buildIngredientListView(frozenIngredients, ingredientProvider,
-              fridgeProvider, '냉동 재료가 없습니다.'),
+          _buildIngredientListView(
+              frozenIngredients, ingredientProvider, '냉동 재료가 없습니다.'),
 
           // Room Temperature Ingredients View
-          _buildIngredientListView(roomTemperatureIngredients,
-              ingredientProvider, fridgeProvider, '실온 재료가 없습니다.'),
+          _buildIngredientListView(
+              roomTemperatureIngredients, ingredientProvider, '실온 재료가 없습니다.'),
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart'; // Provider 패키지 임포트
 import 'screens/fridge_screen.dart'; // 나중에 생성할 메인 냉장고 화면 파일
 import 'providers/ingredient_provider.dart'; // IngredientProvider 임포트
 import 'providers/shopping_cart_provider.dart'; // Import the new provider
+import 'providers/fridge_provider.dart'; // Import FridgeProvider
 
 void main() {
   runApp(const MyApp());
@@ -20,6 +21,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
             create: (context) =>
                 ShoppingCartProvider()), // Add ShoppingCartProvider here
+        ChangeNotifierProvider(
+            create: (context) => FridgeProvider()), // Add FridgeProvider here
       ],
       child: MaterialApp(
         title: 'G Fridge',
