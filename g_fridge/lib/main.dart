@@ -4,9 +4,20 @@ import 'screens/fridge_screen.dart'; // 나중에 생성할 메인 냉장고 화
 import 'providers/ingredient_provider.dart'; // IngredientProvider 임포트
 import 'providers/shopping_cart_provider.dart'; // Import the new provider
 import 'providers/fridge_provider.dart'; // Import FridgeProvider
+import 'providers/wish_list_provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => IngredientProvider()),
+        ChangeNotifierProvider(create: (_) => ShoppingCartProvider()),
+        ChangeNotifierProvider(create: (_) => FridgeProvider()),
+        ChangeNotifierProvider(create: (_) => WishListProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

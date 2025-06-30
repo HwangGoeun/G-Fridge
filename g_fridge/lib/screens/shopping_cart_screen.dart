@@ -18,23 +18,23 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        title: const Text('장바구니'),
-        actions: [
-          // Add ingredient button
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const AddIngredientScreen()),
-              );
-            },
-            tooltip: '재료 추가',
-          ),
-        ],
-      ),
+      // appBar: AppBar(
+      //   title: const Text('장바구니'),
+      //   actions: [
+      //     // Add ingredient button
+      //     IconButton(
+      //       icon: const Icon(Icons.add),
+      //       onPressed: () {
+      //         Navigator.push(
+      //           context,
+      //           MaterialPageRoute(
+      //               builder: (context) => const AddIngredientScreen()),
+      //         );
+      //       },
+      //       tooltip: '재료 추가',
+      //     ),
+      //   ],
+      // ),
       body: Container(
         child: Consumer<ShoppingCartProvider>(
           builder: (context, cartProvider, child) {
