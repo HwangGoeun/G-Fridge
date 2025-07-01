@@ -50,35 +50,76 @@ class _AddFridgeScreenState extends State<AddFridgeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final iconSize = screenHeight * 0.12;
+    final buttonWidth = screenWidth * 0.7;
     return Scaffold(
       appBar: AppBar(title: const Text('냉장고 추가')),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('냉장고 이름', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '예) 우리집 냉장고',
+      backgroundColor: Colors.white,
+      body: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(Icons.kitchen, size: iconSize, color: Colors.blue[600]),
+              SizedBox(height: screenHeight * 0.01),
+              Text(
+                'FRIENDGE',
+                style: TextStyle(
+                  fontSize: screenHeight * 0.06,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[600],
+                ),
               ),
-              enabled: !_isSaving,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _addFridge,
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('추가'),
-            ),
-          ],
+              SizedBox(height: screenWidth * 0.02),
+              const Text(
+                '새로운 냉장고를 만들어보세요!',
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+              SizedBox(height: screenHeight * 0.04),
+              SizedBox(
+                width: buttonWidth,
+                child: TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: '냉장고 이름',
+                    hintText: '예) 우리집 냉장고',
+                  ),
+                  enabled: !_isSaving,
+                  style: const TextStyle(fontSize: 18),
+                ),
+              ),
+              SizedBox(height: screenHeight * 0.04),
+              SizedBox(
+                width: buttonWidth,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[600],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 2,
+                  ),
+                  onPressed: _isSaving ? null : _addFridge,
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('냉장고 추가',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

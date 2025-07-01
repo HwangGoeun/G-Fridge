@@ -120,8 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: screenHeidth * 0.05),
                   SizedBox(
-                    width: logoSize * 5,
-                    height: logoSize * 0.7,
+                    width: 300,
+                    height: 50,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -141,8 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           Image.asset(
                             'assets/google_logo.png',
-                            height: 28,
-                            width: 28,
+                            height: 23,
+                            width: 23,
                           ),
                           SizedBox(width: screenWidth * 0.01),
                           const Text(
