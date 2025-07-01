@@ -74,6 +74,18 @@ class MyApp extends StatelessWidget {
           surfaceTintColor: Colors.white,
           headerBackgroundColor: Colors.blue[600],
           headerForegroundColor: Colors.white,
+          yearForegroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.white;
+            }
+            return Colors.black87;
+          }),
+          yearBackgroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.blue[600];
+            }
+            return Colors.transparent;
+          }),
           dayForegroundColor: MaterialStateProperty.resolveWith((states) {
             if (states.contains(MaterialState.selected)) {
               return Colors.white;
@@ -86,6 +98,22 @@ class MyApp extends StatelessWidget {
             }
             return Colors.transparent;
           }),
+          weekdayStyle: const TextStyle(
+              color: Colors.black87, fontWeight: FontWeight.bold),
+          dayStyle: const TextStyle(color: Colors.black87),
+          yearStyle: const TextStyle(color: Colors.black87),
+          todayForegroundColor: MaterialStateProperty.all(Colors.blue[600]),
+          todayBackgroundColor: MaterialStateProperty.all(Colors.blue[50]),
+          confirmButtonStyle: ButtonStyle(
+            foregroundColor: MaterialStateProperty.all(Colors.blue),
+            textStyle: MaterialStateProperty.all(
+                const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          cancelButtonStyle: ButtonStyle(
+            foregroundColor: MaterialStateProperty.all(Colors.black87),
+            textStyle: MaterialStateProperty.all(
+                const TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ),
       ),
       home: const AuthWrapper(),

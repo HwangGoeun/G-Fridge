@@ -52,198 +52,212 @@ class IngredientCard extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     return Stack(
       children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(size.width * 0.038),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.08),
-                spreadRadius: size.width * 0.0085,
-                blurRadius: size.width * 0.017,
-                offset: Offset(0, size.height * 0.0017),
+        Builder(
+          builder: (context) {
+            int? daysLeft;
+            if (ingredient.expirationDate != null) {
+              final now = DateTime.now();
+              final exp = ingredient.expirationDate!;
+              final expDate = DateTime(exp.year, exp.month, exp.day);
+              final today = DateTime(now.year, now.month, now.day);
+              daysLeft = expDate.difference(today).inDays;
+            }
+            Color cardColor = Colors.white;
+            BoxBorder? cardBorder;
+            if (daysLeft != null && daysLeft <= 7) {
+              cardColor = const Color(
+                  0xFFFFEBEE); // light red for both expired and soon
+              cardBorder = Border.all(color: Colors.red[200]!, width: 1);
+            }
+            return Container(
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(size.width * 0.038),
+                border: cardBorder,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.08),
+                    spreadRadius: size.width * 0.0085,
+                    blurRadius: size.width * 0.017,
+                    offset: Offset(0, size.height * 0.0017),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: size.height * 0.01),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: size.width * 0.042),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      selectionMode
-                          ? Checkbox(
-                              value: checked,
-                              onChanged: (_) {
-                                if (onCheckChanged != null) onCheckChanged!();
-                              },
-                            )
-                          : IconButton(
-                              icon: Icon(
-                                isInCart
-                                    ? Icons.shopping_cart
-                                    : Icons.shopping_cart_outlined,
-                                color: isInCart ? Colors.green : Colors.grey,
-                                size: size.width * 0.051,
-                              ),
-                              onPressed: () {
-                                if (isInCart) {
-                                  Provider.of<ShoppingCartProvider>(context,
-                                          listen: false)
-                                      .removeItem(ingredient);
-                                } else {
-                                  onCart();
-                                }
-                              },
-                              splashRadius: size.width * 0.051,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              tooltip: isInCart ? '장바구니에서 제거' : '장바구니에 추가',
-                            ),
-                      selectionMode
-                          ? const SizedBox.shrink()
-                          : IconButton(
-                              icon: Icon(Icons.close,
-                                  color: Colors.grey, size: size.width * 0.051),
-                              onPressed: onDelete,
-                              splashRadius: size.width * 0.051,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              tooltip: '재료 삭제',
-                            ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: size.width * 0.075),
-                  child: Text(
-                    ingredient.name,
-                    style: TextStyle(
-                      fontSize: size.width * 0.042, // 16% 감소
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(height: size.height * 0.0034), // 15% 감소
-                if (ingredient.expirationDate != null)
-                  Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: size.width * 0.075),
-                    child: (() {
-                      final now = DateTime.now();
-                      final exp = ingredient.expirationDate!;
-                      final expDate = DateTime(exp.year, exp.month, exp.day);
-                      final today = DateTime(now.year, now.month, now.day);
-                      final daysLeft = expDate.difference(today).inDays;
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: size.height * 0.01),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: size.width * 0.042),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            '${exp.year}.${exp.month.toString().padLeft(2, '0')}.${exp.day.toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontSize: size.width * 0.032, // 16% 감소
-                              color: daysLeft < 0
-                                  ? Colors.red
-                                  : daysLeft == 0
-                                      ? Colors.orange
-                                      : daysLeft <= 5
-                                          ? Colors.blue[700]
-                                          : Colors.grey[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const Spacer(),
-                          if (daysLeft < 0)
-                            Text(
-                              '${daysLeft.abs()}일 지남',
-                              style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: size.width * 0.032), // 16% 감소
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          else if (daysLeft == 0)
-                            Text(
-                              '소비기한 오늘까지',
-                              style: TextStyle(
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: size.width * 0.032), // 16% 감소
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          else if (daysLeft <= 5)
-                            Text(
-                              '$daysLeft일 남음',
-                              style: TextStyle(
-                                  color: Colors.blue[700],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: size.width * 0.032), // 16% 감소
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          else
-                            Text(
-                              '충분함',
-                              style: TextStyle(
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: size.width * 0.032), // 16% 감소
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          selectionMode
+                              ? Checkbox(
+                                  value: checked,
+                                  onChanged: (_) {
+                                    if (onCheckChanged != null) {
+                                      onCheckChanged!();
+                                    }
+                                  },
+                                )
+                              : IconButton(
+                                  icon: Icon(
+                                    isInCart
+                                        ? Icons.shopping_cart
+                                        : Icons.shopping_cart_outlined,
+                                    color:
+                                        isInCart ? Colors.green : Colors.grey,
+                                    size: size.width * 0.051,
+                                  ),
+                                  onPressed: () {
+                                    if (isInCart) {
+                                      Provider.of<ShoppingCartProvider>(context,
+                                              listen: false)
+                                          .removeItem(ingredient);
+                                    } else {
+                                      onCart();
+                                    }
+                                  },
+                                  splashRadius: size.width * 0.051,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  tooltip: isInCart ? '장바구니에서 제거' : '장바구니에 추가',
+                                ),
+                          selectionMode
+                              ? const SizedBox.shrink()
+                              : IconButton(
+                                  icon: Icon(Icons.close,
+                                      color: Colors.grey,
+                                      size: size.width * 0.051),
+                                  onPressed: onDelete,
+                                  splashRadius: size.width * 0.051,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  tooltip: '재료 삭제',
+                                ),
                         ],
-                      );
-                    })(),
-                  ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: size.width * 0.042),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      if (!selectionMode) ...[
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: Icon(Icons.remove_circle_outline,
-                              color: Colors.grey, size: size.width * 0.051),
-                          onPressed: onDecrease,
+                      ),
+                    ),
+                    Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: size.width * 0.075),
+                      child: Text(
+                        ingredient.name,
+                        style: TextStyle(
+                          fontSize: size.width * 0.042, // 16% 감소
+                          fontWeight: FontWeight.bold,
                         ),
-                        SizedBox(
-                          child: Text(
-                            ingredient.quantity.toString(),
-                            style: TextStyle(
-                                fontSize: size.width * 0.038,
-                                fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center,
-                          ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    SizedBox(height: size.height * 0.0034), // 15% 감소
+                    if (ingredient.expirationDate != null)
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: size.width * 0.075),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Text(
+                              ingredient.expirationDate != null
+                                  ? '${ingredient.expirationDate!.year}.${ingredient.expirationDate!.month.toString().padLeft(2, '0')}.${ingredient.expirationDate!.day.toString().padLeft(2, '0')}'
+                                  : '',
+                              style: TextStyle(
+                                fontSize: size.width * 0.032, // 16% 감소
+                                color: daysLeft != null && daysLeft < 0
+                                    ? Colors.red
+                                    : daysLeft != null && daysLeft == 0
+                                        ? Colors.red
+                                        : daysLeft != null && daysLeft <= 7
+                                            ? Colors.red
+                                            : Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Spacer(),
+                            if (daysLeft != null && daysLeft < 0)
+                              Text(
+                                '${daysLeft.abs()}일 지남',
+                                style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: size.width * 0.032), // 16% 감소
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            else if (daysLeft != null && daysLeft == 0)
+                              Text(
+                                '소비기한 오늘까지',
+                                style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: size.width * 0.032), // 16% 감소
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            else if (daysLeft != null && daysLeft <= 7)
+                              Text(
+                                '$daysLeft일 남음',
+                                style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: size.width * 0.032), // 16% 감소
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            else
+                              const SizedBox.shrink(),
+                          ],
                         ),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: Icon(Icons.add_circle_outline,
-                              color: Colors.grey, size: size.width * 0.051),
-                          onPressed: onIncrease,
-                        ),
-                      ],
-                    ],
-                  ),
+                      ),
+                    Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: size.width * 0.042),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          if (!selectionMode) ...[
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Icon(Icons.remove_circle_outline,
+                                  color: Colors.grey, size: size.width * 0.051),
+                              onPressed: onDecrease,
+                            ),
+                            SizedBox(
+                              child: Text(
+                                ingredient.quantity.toString(),
+                                style: TextStyle(
+                                    fontSize: size.width * 0.038,
+                                    fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Icon(Icons.add_circle_outline,
+                                  color: Colors.grey, size: size.width * 0.051),
+                              onPressed: onIncrease,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ],
     );
