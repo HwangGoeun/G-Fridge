@@ -9,23 +9,17 @@ class FridgeListScreen extends StatelessWidget {
     final List<Map<String, dynamic>> fridges = [
       {
         'name': '우리집 냉장고',
-        'type': '가정용',
-        'location': '부엌',
-        'lastUpdated': '2024-01-15',
+        'type': '개인용',
         'ingredientCount': 12,
       },
       {
         'name': '회사 냉장고',
-        'type': '사무실용',
-        'location': '사무실',
-        'lastUpdated': '2024-01-14',
+        'type': '개인용',
         'ingredientCount': 8,
       },
       {
         'name': '기숙사 냉장고',
-        'type': '기숙사용',
-        'location': '기숙사',
-        'lastUpdated': '2024-01-13',
+        'type': '개인용',
         'ingredientCount': 15,
       },
     ];
@@ -83,7 +77,7 @@ class FridgeListScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 4),
                   Text(
-                    '${fridge['type']} • ${fridge['location']}',
+                    '${fridge['type']}',
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 14,
@@ -91,7 +85,7 @@ class FridgeListScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '재료 ${fridge['ingredientCount']}개 • 마지막 업데이트: ${fridge['lastUpdated']}',
+                    '재료 ${fridge['ingredientCount']}개',
                     style: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 12,

@@ -23,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
+      print('[LoginScreen] 구글 로그인 시도');
       // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
 
@@ -40,6 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Once signed in, return the UserCredential
         final userCredential =
             await FirebaseAuth.instance.signInWithCredential(credential);
+        print('[LoginScreen] 구글 로그인 성공');
         // 닉네임 없으면 생성 및 저장
         final user = userCredential.user;
         if (user != null) {
@@ -51,30 +53,19 @@ class _LoginScreenState extends State<LoginScreen> {
               .get();
           final nickname = userDoc.data()?['nickname'];
           if (!userDoc.exists) {
-            // Generate nickname#tag and save only for new users
-            await fridgeProvider.addOrUpdateMyMemberWithUniqueTag(
-                fridgeProvider.generateDefaultNickname());
-            final fridge = fridgeProvider.currentFridge;
-            final myMember =
-                fridge?.members.whereType<Map<String, String>>().firstWhere(
-                      (m) => m['uid'] == user.uid,
-                      orElse: () => {},
-                    );
-            if (myMember != null &&
-                myMember.isNotEmpty &&
-                myMember['nickname'] != null &&
-                myMember['tag'] != null) {
-              final nicknameWithTag =
-                  "${myMember['nickname']}#${myMember['tag']}";
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .set({'nickname': nicknameWithTag}, SetOptions(merge: true));
-            }
-            // 신규 유저는 냉장고/멤버 정보도 바로 fetch
+            final defaultNickname = fridgeProvider.generateDefaultNickname();
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .set({'nickname': defaultNickname}, SetOptions(merge: true));
+            print('[LoginScreen] 신규 유저 닉네임 생성');
             await fridgeProvider.initializeFromFirestore();
           }
-          await fridgeProvider.loadMyNicknameWithTag();
+          print('[LoginScreen] FridgeProvider 초기화 시작');
+          await fridgeProvider.initialize();
+          await fridgeProvider.initializeFromFirestore();
+          print('[LoginScreen] FridgeProvider 초기화 완료');
+          await fridgeProvider.loadMyNickname();
         }
         // 로그인 성공 후 화면 닫기
         if (mounted) Navigator.of(context).pop();
@@ -87,33 +78,85 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeidth = MediaQuery.of(context).size.height;
+    final logoSize = screenWidth * 0.08;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Login'),
-      ),
+      backgroundColor: Colors.white,
       body: Center(
         child: _isLoading
-            ? const SizedBox.expand(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: Colors.black54),
-                  child: Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
+            ? const DecoratedBox(
+                decoration: BoxDecoration(color: Colors.black54),
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white),
                 ),
               )
-            : ElevatedButton(
-                onPressed: _signInWithGoogle,
-                child: const Text('Sign in with Google'),
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.kitchen,
+                      size: screenHeidth * 0.16, color: Colors.blue[600]),
+                  SizedBox(height: screenHeidth * 0.01),
+                  Text(
+                    'FRIENDGE',
+                    style: TextStyle(
+                      fontSize: screenHeidth * 0.08,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[600],
+                    ),
+                  ),
+                  SizedBox(height: screenWidth * 0.02),
+                  const Text(
+                    '함께 채우는 냉장고, 프렌지',
+                    style: TextStyle(fontSize: 16, color: Colors.black54),
+                  ),
+                  SizedBox(height: screenHeidth * 0.05),
+                  SizedBox(
+                    width: logoSize * 5,
+                    height: logoSize * 0.7,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(color: Colors.grey),
+                        ),
+                        elevation: 2,
+                      ).copyWith(
+                        backgroundColor:
+                            MaterialStateProperty.all<Color>(Colors.white),
+                      ),
+                      onPressed: _signInWithGoogle,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/google_logo.png',
+                            height: 28,
+                            width: 28,
+                          ),
+                          SizedBox(width: screenWidth * 0.01),
+                          const Text(
+                            '구글로 로그인하기',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
       ),
     );
@@ -145,30 +188,14 @@ class GoogleAuthHelper {
               .get();
           final nickname = userDoc.data()?['nickname'];
           if (!userDoc.exists) {
-            // Generate nickname#tag and save only for new users
-            await fridgeProvider.addOrUpdateMyMemberWithUniqueTag(
-                fridgeProvider.generateDefaultNickname());
-            final fridge = fridgeProvider.currentFridge;
-            final myMember =
-                fridge?.members.whereType<Map<String, String>>().firstWhere(
-                      (m) => m['uid'] == user.uid,
-                      orElse: () => {},
-                    );
-            if (myMember != null &&
-                myMember.isNotEmpty &&
-                myMember['nickname'] != null &&
-                myMember['tag'] != null) {
-              final nicknameWithTag =
-                  "${myMember['nickname']}#${myMember['tag']}";
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .set({'nickname': nicknameWithTag}, SetOptions(merge: true));
-            }
-            // 신규 유저는 냉장고/멤버 정보도 바로 fetch
+            final defaultNickname = fridgeProvider.generateDefaultNickname();
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .set({'nickname': defaultNickname}, SetOptions(merge: true));
             await fridgeProvider.initializeFromFirestore();
           }
-          await fridgeProvider.loadMyNicknameWithTag();
+          await fridgeProvider.loadMyNickname();
         }
       }
     } catch (e) {

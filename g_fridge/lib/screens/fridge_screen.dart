@@ -18,6 +18,7 @@ import 'login_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'my_page_screen.dart';
+import 'add_fridge_screen.dart';
 
 // GoogleAuthHelper는 login_screen.dart에서 import됨
 
@@ -269,7 +270,7 @@ class _FridgeScreenState extends State<FridgeScreen>
       await Provider.of<FridgeProvider>(context, listen: false)
           .initializeFromFirestore();
       await Provider.of<FridgeProvider>(context, listen: false)
-          .loadMyNicknameWithTag();
+          .loadMyNickname();
     });
   }
 
@@ -371,8 +372,8 @@ class _FridgeScreenState extends State<FridgeScreen>
   }
 
   // Helper method to build fridge item in drawer
-  Widget _buildFridgeItem(BuildContext context, String name, String subtitle,
-      String detail, IconData icon, Color color) {
+  Widget _buildFridgeItem(BuildContext context, String fridgeId, String name,
+      String subtitle, String detail, IconData icon, Color color) {
     return ListTile(
       leading: Container(
         width: 40,
@@ -394,35 +395,18 @@ class _FridgeScreenState extends State<FridgeScreen>
           fontSize: 16,
         ),
       ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-            ),
-          ),
-          Text(
-            detail,
-            style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 11,
-            ),
-          ),
-        ],
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: Colors.grey[500],
+          fontSize: 11,
+        ),
       ),
       onTap: () {
-        // FridgeProvider를 사용하여 현재 냉장고 변경
         final fridgeProvider =
             Provider.of<FridgeProvider>(context, listen: false);
-        final selectedFridge = fridgeProvider.fridges.firstWhere(
-          (fridge) => fridge.name == name,
-          orElse: () => fridgeProvider.fridges.first,
-        );
-        fridgeProvider.setCurrentFridge(selectedFridge.id);
-        Navigator.pop(context); // 드로어 닫기
+        fridgeProvider.setCurrentFridge(fridgeId);
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('$name로 이동했습니다.'),
@@ -436,28 +420,22 @@ class _FridgeScreenState extends State<FridgeScreen>
   // Helper method to get fridge icon based on type
   IconData _getFridgeIcon(String type) {
     switch (type) {
-      case '가정용':
-        return Icons.home;
-      case '사무실용':
-        return Icons.business;
-      case '기숙사용':
-        return Icons.apartment;
+      case '공유용':
+        return Icons.group;
+      case '개인용':
       default:
-        return Icons.kitchen;
+        return Icons.person;
     }
   }
 
   // Helper method to get fridge color based on type
   Color _getFridgeColor(String type) {
     switch (type) {
-      case '가정용':
-        return Colors.blue[600]!;
-      case '사무실용':
-        return Colors.green[600]!;
-      case '기숙사용':
+      case '공유용':
         return Colors.orange[600]!;
+      case '개인용':
       default:
-        return Colors.grey[600]!;
+        return Colors.blue[600]!;
     }
   }
 
@@ -532,26 +510,49 @@ class _FridgeScreenState extends State<FridgeScreen>
                 ),
                 child: Column(
                   children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(40),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            spreadRadius: 2,
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                    Builder(
+                      builder: (context) {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) {
+                          return const SizedBox(height: 80);
+                        }
+                        return Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(40),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                spreadRadius: 2,
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.kitchen,
-                        size: 40,
-                        color: Colors.blue[600],
-                      ),
+                          child: user.photoURL != null
+                              ? ClipOval(
+                                  child: Image.network(
+                                    user.photoURL!,
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) => Icon(
+                                      Icons.person,
+                                      size: 40,
+                                      color: Colors.blue[600],
+                                    ),
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.person,
+                                  size: 40,
+                                  color: Colors.blue[600],
+                                ),
+                        );
+                      },
                     ),
                     SizedBox(
                         height: MediaQuery.of(context).size.height * 0.015),
@@ -565,155 +566,155 @@ class _FridgeScreenState extends State<FridgeScreen>
                                 color: Colors.white, strokeWidth: 2),
                           );
                         }
-                        final nicknameWithTag =
-                            fridgeProvider.getMyNicknameWithTag() ??
-                                '로그인을 해주세요';
-                        return Text(
-                          nicknameWithTag,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                        final nickname =
+                            fridgeProvider.getMyNickname() ?? '로그인을 해주세요';
+                        return Column(
+                          children: [
+                            Text(
+                              nickname,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (user == null)
+                              TextButton(
+                                onPressed: () async {
+                                  await GoogleAuthHelper.signInWithGoogle(
+                                      context);
+                                  if (!context.mounted) return;
+                                  final fridgeProvider =
+                                      Provider.of<FridgeProvider>(context,
+                                          listen: false);
+                                  await fridgeProvider.initialize();
+                                  await fridgeProvider
+                                      .initializeFromFirestore();
+                                  setState(() {});
+                                },
+                                child: const Text(
+                                  '로그인 하기',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    Builder(
+                      builder: (context) {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) return const SizedBox.shrink();
+                        return TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const MyPageScreen()),
+                            );
+                          },
+                          child: const Text(
+                            '내 정보 수정하기',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                decoration: TextDecoration.underline),
                           ),
                         );
                       },
                     ),
-                    Consumer<FridgeProvider>(
-                      builder: (context, fridgeProvider, _) {
-                        if (!fridgeProvider.isUserReady) {
-                          return const SizedBox.shrink();
-                        }
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user == null) {
-                          return TextButton(
-                            onPressed: () async {
-                              await GoogleAuthHelper.signInWithGoogle(context);
-                              await Provider.of<FridgeProvider>(context,
-                                      listen: false)
-                                  .loadMyNicknameWithTag();
-                              setState(
-                                  () {}); // Force rebuild to update nickname
-                            },
-                            child: const Text(
-                              '로그인 하기',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  decoration: TextDecoration.underline),
-                            ),
-                          );
-                        } else {
-                          return TextButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const MyPageScreen()),
-                              );
-                            },
-                            child: const Text(
-                              '내 정보 수정하기',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  decoration: TextDecoration.underline),
-                            ),
-                          );
-                        }
-                      },
-                    ),
                     SizedBox(
                         height: MediaQuery.of(context).size.height * 0.005),
-                    // Text(
-                    //   '나의 냉장고 관리',
-                    //   style: TextStyle(
-                    //     color: Colors.blue[100],
-                    //     fontSize: 14,
-                    //   ),
-                    // ),
                   ],
                 ),
               ),
               // 냉장고 목록
               Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    // 냉장고 목록 헤더
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
+                child: fridgeProvider.isUserReady
+                    ? ListView(
+                        padding: EdgeInsets.zero,
                         children: [
-                          Icon(
-                            Icons.list,
-                            color: Colors.grey[600],
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '나의 냉장고',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                          // 냉장고 목록 헤더
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.list,
+                                  color: Colors.grey[600],
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '나의 냉장고',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                          // 냉장고 아이템들
+                          ...fridgeProvider.fridges.map((fridge) {
+                            final ingredients = fridgeProvider
+                                .getIngredientsForFridge(fridge.id);
+                            String subtitle = fridge.type;
+                            return _buildFridgeItem(
+                              context,
+                              fridge.id,
+                              fridge.name,
+                              subtitle,
+                              '재료 ${ingredients.length}개',
+                              _getFridgeIcon(fridge.type),
+                              _getFridgeColor(fridge.type),
+                            );
+                          }).toList(),
+                          const Divider(height: 32),
+                          // 새 냉장고 추가 버튼
+                          ListTile(
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.add,
+                                color: Colors.grey[600],
+                                size: 20,
+                              ),
+                            ),
+                            title: const Text(
+                              '새 냉장고 추가',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context); // 드로어 닫기
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const AddFridgeScreen(),
+                                ),
+                              );
+                            },
+                          ),
                         ],
-                      ),
-                    ),
-                    // 냉장고 아이템들
-                    ...fridgeProvider.fridges.map((fridge) {
-                      final ingredients =
-                          fridgeProvider.getIngredientsForFridge(fridge.id);
-                      return _buildFridgeItem(
-                        context,
-                        fridge.name,
-                        '${fridge.type} • ${fridge.location}',
-                        '재료 ${ingredients.length}개',
-                        _getFridgeIcon(fridge.type),
-                        _getFridgeColor(fridge.type),
-                      );
-                    }).toList(),
-                    const Divider(height: 32),
-                    // // 새 냉장고 추가 버튼
-                    // ListTile(
-                    //   leading: Container(
-                    //     width: 40,
-                    //     height: 40,
-                    //     decoration: BoxDecoration(
-                    //       color: Colors.grey[100],
-                    //       borderRadius: BorderRadius.circular(8),
-                    //     ),
-                    //     child: Icon(
-                    //       Icons.add,
-                    //       color: Colors.grey[600],
-                    //       size: 20,
-                    //     ),
-                    //   ),
-                    //   title: const Text(
-                    //     '새 냉장고 추가',
-                    //     style: TextStyle(
-                    //       fontWeight: FontWeight.w500,
-                    //     ),
-                    //   ),
-                    //   onTap: () {
-                    //     Navigator.pop(context); // 드로어 닫기
-                    //     ScaffoldMessenger.of(context).showSnackBar(
-                    //       const SnackBar(
-                    //         content: Text('새 냉장고 추가 기능은 준비 중입니다.'),
-                    //         duration: Duration(seconds: 2),
-                    //       ),
-                    //     );
-                    //   },
-                    // ),
-                  ],
-                ),
+                      )
+                    : const Center(child: CircularProgressIndicator()),
               ),
               // 하단 정보
               Container(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    const Divider(),
+                    // const Divider(),
                     const SizedBox(height: 8),
                     Text(
                       'G Fridge v1.0',

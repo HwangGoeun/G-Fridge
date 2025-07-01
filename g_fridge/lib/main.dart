@@ -6,6 +6,7 @@ import 'providers/ingredient_provider.dart'; // IngredientProvider 임포트
 import 'providers/shopping_cart_provider.dart'; // Import the new provider
 import 'providers/fridge_provider.dart'; // Import FridgeProvider
 import 'providers/wish_list_provider.dart';
+import 'screens/auth_wrapper.dart';
 
 import 'firebase_options.dart';
 
@@ -35,9 +36,22 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'G Fridge',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2196F3)),
+        colorScheme: const ColorScheme(
+          brightness: Brightness.light,
+          primary: Colors.white,
+          onPrimary: Colors.black87,
+          secondary: Colors.grey,
+          onSecondary: Colors.black87,
+          error: Colors.red,
+          onError: Colors.white,
+          background: Colors.white,
+          onBackground: Colors.black87,
+          surface: Colors.white,
+          onSurface: Colors.black87,
+        ),
         useMaterial3: true,
-        primaryColor: const Color(0xFF2196F3),
+        primaryColor: Colors.white,
+        scaffoldBackgroundColor: Colors.white,
         datePickerTheme: DatePickerThemeData(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
@@ -57,7 +71,7 @@ class MyApp extends StatelessWidget {
           }),
         ),
       ),
-      home: const FridgeScreen(),
+      home: const AuthWrapper(),
     );
   }
 }

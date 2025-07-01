@@ -62,15 +62,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
             );
           }
         }
-        final nicknameWithTag =
-            fridgeProvider.getMyNicknameWithTag() ?? '닉네임 없음';
-        String nickname = nicknameWithTag;
-        String tag = '';
-        if (nicknameWithTag.contains('#')) {
-          final parts = nicknameWithTag.split('#');
-          nickname = parts[0];
-          tag = parts.length > 1 ? parts[1] : '';
-        }
+        final nickname = fridgeProvider.getMyNickname() ?? '닉네임 없음';
         if (!_isEditing) {
           _nicknameController.text = nickname;
         }
@@ -129,74 +121,63 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       Text(nickname,
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w500)),
-                    // 태그는 항상 읽기 전용으로 옆에 표시
-                    if (tag.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: Text('#$tag',
-                            style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue)),
-                      ),
                     const SizedBox(width: 8),
                     if (user != null)
                       _isEditing
                           ? IconButton(
                               icon: const Icon(Icons.check, color: Colors.blue),
-                              onPressed: (!fridgeProvider.isUserReady ||
-                                      _isSaving)
-                                  ? null
-                                  : () async {
-                                      final newNickname =
-                                          _nicknameController.text.trim();
-                                      print('이전 닉네임: $nickname');
-                                      print('변경된 닉네임: $newNickname');
-                                      if (newNickname.isEmpty) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content:
-                                                  Text('닉네임은 공백일 수 없습니다.')),
-                                        );
-                                        return;
-                                      }
-                                      if (!RegExp(
-                                              r'^[^\s!@#\$%^&*(),.?":{}|<>\[\]/;`~=_+]+$')
-                                          .hasMatch(newNickname)) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  '닉네임에 특수문자나 공백을 사용할 수 없습니다.')),
-                                        );
-                                        return;
-                                      }
-                                      setState(() => _isSaving = true);
-                                      final fridgeProvider =
-                                          Provider.of<FridgeProvider>(context,
-                                              listen: false);
-                                      final error = await fridgeProvider
-                                          .addOrUpdateMyMemberWithUniqueTag(
-                                              newNickname);
-                                      if (error != null) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(content: Text(error)),
-                                        );
-                                        setState(() => _isSaving = false);
-                                        return;
-                                      }
-                                      setState(() {
-                                        _isEditing = false;
-                                        _isSaving = false;
-                                      });
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                            content: Text('닉네임이 변경되었습니다.')),
-                                      );
-                                    },
+                              onPressed:
+                                  (!fridgeProvider.isUserReady || _isSaving)
+                                      ? null
+                                      : () async {
+                                          final newNickname =
+                                              _nicknameController.text.trim();
+                                          if (newNickname.isEmpty) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content:
+                                                      Text('닉네임은 공백일 수 없습니다.')),
+                                            );
+                                            return;
+                                          }
+                                          if (!RegExp(
+                                                  r'^[^\s!@#\$%^&*(),.?":{}|<>\[\]/;`~=_+]+$')
+                                              .hasMatch(newNickname)) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      '닉네임에 특수문자나 공백을 사용할 수 없습니다.')),
+                                            );
+                                            return;
+                                          }
+                                          setState(() => _isSaving = true);
+                                          final user =
+                                              FirebaseAuth.instance.currentUser;
+                                          if (user == null) {
+                                            setState(() {
+                                              _isSaving = false;
+                                              _isEditing = false;
+                                            });
+                                            return;
+                                          }
+                                          await FirebaseFirestore.instance
+                                              .collection('users')
+                                              .doc(user.uid)
+                                              .set({'nickname': newNickname},
+                                                  SetOptions(merge: true));
+                                          await fridgeProvider.loadMyNickname();
+                                          setState(() {
+                                            _isEditing = false;
+                                            _isSaving = false;
+                                          });
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                                content: Text('닉네임이 변경되었습니다.')),
+                                          );
+                                        },
                             )
                           : IconButton(
                               icon: const Icon(Icons.edit,
@@ -224,7 +205,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       try {
                         await GoogleSignIn().disconnect();
                       } catch (_) {}
+                      try {
+                        await GoogleSignIn().signOut();
+                      } catch (_) {}
+                      print(
+                          'user after signOut: \\${FirebaseAuth.instance.currentUser}');
                       if (context.mounted) {
+                        setState(() {}); // UI 강제 갱신
                         Navigator.of(context)
                             .popUntil((route) => route.isFirst);
                       }
@@ -248,74 +235,52 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     onPressed: _isSaving
                         ? null
                         : () async {
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('회원 탈퇴'),
-                                content: const Text(
-                                    '정말로 회원 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.'),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('취소')),
-                                  TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('탈퇴')),
-                                ],
-                              ),
-                            );
-                            if (confirmed != true) return;
                             setState(() => _isSaving = true);
                             try {
                               final user = FirebaseAuth.instance.currentUser;
-                              if (user != null) {
-                                // Firestore 데이터 삭제 (users/{uid}, fridges, ingredients, members)
-                                final userDoc = FirebaseFirestore.instance
-                                    .collection('users')
-                                    .doc(user.uid);
-                                final fridgesSnapshot =
-                                    await userDoc.collection('fridges').get();
-                                for (final fridgeDoc in fridgesSnapshot.docs) {
-                                  // 재료 삭제
-                                  final ingredientsSnapshot = await fridgeDoc
-                                      .reference
-                                      .collection('ingredients')
-                                      .get();
-                                  for (final ingDoc
-                                      in ingredientsSnapshot.docs) {
-                                    await ingDoc.reference.delete();
-                                  }
-                                  // 멤버 삭제
-                                  final membersSnapshot = await fridgeDoc
-                                      .reference
-                                      .collection('members')
-                                      .get();
-                                  for (final memDoc in membersSnapshot.docs) {
-                                    await memDoc.reference.delete();
-                                  }
-                                  // 냉장고 문서 삭제
-                                  await fridgeDoc.reference.delete();
+                              if (user == null) return;
+                              final userDoc = FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid);
+
+                              // 1. fridges 및 하위 ingredients 삭제
+                              final fridgesSnapshot =
+                                  await userDoc.collection('fridges').get();
+                              for (final fridgeDoc in fridgesSnapshot.docs) {
+                                // 재료 삭제
+                                final ingredientsSnapshot = await fridgeDoc
+                                    .reference
+                                    .collection('ingredients')
+                                    .get();
+                                for (final ingredientDoc
+                                    in ingredientsSnapshot.docs) {
+                                  await ingredientDoc.reference.delete();
                                 }
-                                // users/{uid} 문서 삭제
-                                await userDoc.delete();
-                                // Firebase Auth 계정 삭제
-                                await user.delete();
-                                // Google 계정 세션도 완전히 해제
-                                try {
-                                  await GoogleSignIn().disconnect();
-                                } catch (_) {}
-                                try {
-                                  await GoogleSignIn().signOut();
-                                } catch (_) {}
-                                Provider.of<FridgeProvider>(context,
-                                        listen: false)
-                                    .clear();
-                                if (context.mounted) {
-                                  Navigator.of(context)
-                                      .popUntil((route) => route.isFirst);
-                                }
+                                // 냉장고 문서 삭제
+                                await fridgeDoc.reference.delete();
+                              }
+
+                              // 2. users/{uid} 문서 삭제
+                              await userDoc.delete();
+
+                              // 3. Firebase Auth 계정 삭제
+                              await user.delete();
+
+                              // 4. Google 세션 완전 해제
+                              try {
+                                await GoogleSignIn().disconnect();
+                              } catch (_) {}
+                              try {
+                                await GoogleSignIn().signOut();
+                              } catch (_) {}
+
+                              // 5. Provider 상태 초기화 및 홈으로 이동
+                              Provider.of<FridgeProvider>(context,
+                                      listen: false)
+                                  .clear();
+                              if (context.mounted) {
+                                Navigator.of(context)
+                                    .popUntil((route) => route.isFirst);
                               }
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(
