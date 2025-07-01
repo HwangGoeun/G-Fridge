@@ -45,3 +45,8 @@
 
 # Lock files (optional depending on package manager usage)
 **/*.lock
+
+# Firebase/Google config (ignore anywhere in project)
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase.json
