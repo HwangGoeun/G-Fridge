@@ -13,23 +13,29 @@ class Ingredient {
     this.quantity = 1.0, // 기본값 1.0
   });
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'storageType': storageType.name,
-        'quantity': quantity,
-        'expirationDate': expirationDate?.toIso8601String(),
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'quantity': quantity,
+      'storageType': storageType.toString().split('.').last,
+      'expirationDate': expirationDate?.toIso8601String(),
+    };
+  }
 
   factory Ingredient.fromJson(Map<String, dynamic> json) {
     return Ingredient(
       id: json['id'],
       name: json['name'],
-      storageType: StorageType.values.byName(json['storageType']),
-      quantity: json['quantity'],
-      expirationDate: json['expirationDate'] != null
-          ? DateTime.parse(json['expirationDate'])
-          : null,
+      quantity: (json['quantity'] as num).toDouble(),
+      storageType: StorageType.values.firstWhere(
+        (e) => e.toString().split('.').last == json['storageType'],
+        orElse: () => StorageType.refrigerated,
+      ),
+      expirationDate:
+          json['expirationDate'] != null && json['expirationDate'] != ''
+              ? DateTime.parse(json['expirationDate'])
+              : null,
     );
   }
 

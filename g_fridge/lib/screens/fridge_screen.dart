@@ -12,6 +12,14 @@ import 'package:uuid/uuid.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'fridge_info_screen.dart'; // 냉장고 정보 화면 import
 import 'wish_list_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'my_page_screen.dart';
+
+// GoogleAuthHelper는 login_screen.dart에서 import됨
 
 // IngredientCard 위젯 추가
 class IngredientCard extends StatelessWidget {
@@ -256,8 +264,12 @@ class _FridgeScreenState extends State<FridgeScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     // FridgeProvider 초기화
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<FridgeProvider>(context, listen: false).initialize();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Provider.of<FridgeProvider>(context, listen: false).initialize();
+      await Provider.of<FridgeProvider>(context, listen: false)
+          .initializeFromFirestore();
+      await Provider.of<FridgeProvider>(context, listen: false)
+          .loadMyNicknameWithTag();
     });
   }
 
@@ -453,6 +465,11 @@ class _FridgeScreenState extends State<FridgeScreen>
   Widget build(BuildContext context) {
     final ingredientProvider = Provider.of<IngredientProvider>(context);
     final fridgeProvider = Provider.of<FridgeProvider>(context);
+    if (!fridgeProvider.isUserReady) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     final currentFridge = fridgeProvider.currentFridge;
     final currentIngredients = fridgeProvider.currentFridgeIngredients;
 
@@ -484,6 +501,8 @@ class _FridgeScreenState extends State<FridgeScreen>
             ingredient.storageType == StorageType.roomTemperature)
         .toList()
       ..sort(compareIngredients);
+
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -536,13 +555,71 @@ class _FridgeScreenState extends State<FridgeScreen>
                     ),
                     SizedBox(
                         height: MediaQuery.of(context).size.height * 0.015),
-                    const Text(
-                      'G Fridge',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Consumer<FridgeProvider>(
+                      builder: (context, fridgeProvider, _) {
+                        if (!fridgeProvider.isUserReady) {
+                          return const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          );
+                        }
+                        final nicknameWithTag =
+                            fridgeProvider.getMyNicknameWithTag() ??
+                                '로그인을 해주세요';
+                        return Text(
+                          nicknameWithTag,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      },
+                    ),
+                    Consumer<FridgeProvider>(
+                      builder: (context, fridgeProvider, _) {
+                        if (!fridgeProvider.isUserReady) {
+                          return const SizedBox.shrink();
+                        }
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user == null) {
+                          return TextButton(
+                            onPressed: () async {
+                              await GoogleAuthHelper.signInWithGoogle(context);
+                              await Provider.of<FridgeProvider>(context,
+                                      listen: false)
+                                  .loadMyNicknameWithTag();
+                              setState(
+                                  () {}); // Force rebuild to update nickname
+                            },
+                            child: const Text(
+                              '로그인 하기',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  decoration: TextDecoration.underline),
+                            ),
+                          );
+                        } else {
+                          return TextButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const MyPageScreen()),
+                              );
+                            },
+                            child: const Text(
+                              '내 정보 수정하기',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  decoration: TextDecoration.underline),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     SizedBox(
                         height: MediaQuery.of(context).size.height * 0.005),

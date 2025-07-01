@@ -45,5 +45,15 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>sms</string>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
+	<key>GIDClientID</key>
+	<string>44374432443-qgaudadt37cp70541db2dr2cbs0sdl0o.apps.googleusercontent.com</string>
 </dict>
 </plist>

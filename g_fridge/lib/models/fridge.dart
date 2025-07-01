@@ -8,7 +8,7 @@ class Fridge {
   final DateTime createdAt;
   final DateTime lastUpdated;
   final String creatorId;
-  final List<String> members;
+  final List<Map<String, String>> members;
 
   Fridge({
     String? id,
@@ -18,11 +18,14 @@ class Fridge {
     DateTime? createdAt,
     DateTime? lastUpdated,
     required this.creatorId,
-    List<String>? members,
+    List<Map<String, String>>? members,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         lastUpdated = lastUpdated ?? DateTime.now(),
-        members = members ?? [creatorId];
+        members = members ??
+            [
+              {'nickname': '생성자', 'tag': '0001', 'deviceId': creatorId},
+            ];
 
   Fridge copyWith({
     String? id,
@@ -32,7 +35,7 @@ class Fridge {
     DateTime? createdAt,
     DateTime? lastUpdated,
     String? creatorId,
-    List<String>? members,
+    List<Map<String, String>>? members,
   }) {
     return Fridge(
       id: id ?? this.id,
@@ -55,7 +58,7 @@ class Fridge {
       'createdAt': createdAt.toIso8601String(),
       'lastUpdated': lastUpdated.toIso8601String(),
       'creatorId': creatorId,
-      'members': members,
+      'members': members.map((m) => memberToJson(m)).toList(),
     };
   }
 
@@ -65,12 +68,34 @@ class Fridge {
       name: json['name'],
       type: json['type'],
       location: json['location'],
-      createdAt: DateTime.parse(json['createdAt']),
-      lastUpdated: DateTime.parse(json['lastUpdated']),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+      lastUpdated: json['lastUpdated'] != null
+          ? DateTime.parse(json['lastUpdated'])
+          : DateTime.now(),
       creatorId: json['creatorId'] ?? '',
       members: (json['members'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList(),
+              ?.map((e) => memberFromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
+  }
+
+  // 멤버를 Firestore 서브컬렉션용으로 변환
+  static Map<String, dynamic> memberToJson(Map<String, String> member) {
+    return {
+      'nickname': member['nickname'] ?? '',
+      'tag': member['tag'] ?? '',
+      'uid': member['uid'] ?? '',
+    };
+  }
+
+  static Map<String, String> memberFromJson(Map<String, dynamic> json) {
+    return {
+      'nickname': json['nickname'] ?? '',
+      'tag': json['tag'] ?? '',
+      'uid': json['uid'] ?? '',
+    };
   }
 }

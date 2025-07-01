@@ -39,6 +39,11 @@ dependencies:
   uuid: ^4.2.1
   flutter_slidable: ^3.0.0
   dropdown_button2: ^2.3.9
+  share_plus: ^10.0.0
+  firebase_core: ^2.13.1
+  firebase_auth: ^4.6.3
+  google_sign_in: ^6.0.2
+  cloud_firestore: ^4.17.5
 
 dev_dependencies:
   flutter_test:
