@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/wish.dart';
 import '../providers/wish_list_provider.dart';
+import 'package:uuid/uuid.dart';
 
 class WishAddScreen extends StatefulWidget {
   const WishAddScreen({super.key});
@@ -25,6 +26,7 @@ class _WishAddScreenState extends State<WishAddScreen> {
   void _saveWish() {
     if (_formKey.currentState!.validate()) {
       final wish = Wish(
+        id: const Uuid().v4(),
         name: _nameController.text.trim(),
         reason: _reasonController.text.trim(),
       );
@@ -52,7 +54,7 @@ class _WishAddScreenState extends State<WishAddScreen> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: '재료 이름',
+                  hintText: '재료 이름을 입력하세요',
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
@@ -66,7 +68,7 @@ class _WishAddScreenState extends State<WishAddScreen> {
               TextFormField(
                 controller: _reasonController,
                 decoration: const InputDecoration(
-                  labelText: '필요한 이유',
+                  hintText: '필요한 이유를 입력하세요',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 2,

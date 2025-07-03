@@ -1,44 +1,47 @@
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/wish.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class WishListProvider extends ChangeNotifier {
-  static const _wishListKey = 'wish_list';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late String _fridgeId;
   List<Wish> _wishes = [];
 
   List<Wish> get wishes => _wishes;
 
-  WishListProvider() {
-    _loadWishes();
+  void setFridgeId(String fridgeId) {
+    _fridgeId = fridgeId;
+    _listenToWishes();
   }
 
-  Future<void> _loadWishes() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? wishString = prefs.getString(_wishListKey);
-    if (wishString != null) {
-      final List<dynamic> wishJson = jsonDecode(wishString);
-      _wishes = wishJson.map((json) => Wish.fromJson(json)).toList();
+  void _listenToWishes() {
+    _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('wishes')
+        .snapshots()
+        .listen((snapshot) {
+      _wishes = snapshot.docs
+          .map((doc) => Wish.fromFirestore(doc.data(), doc.id))
+          .toList();
       notifyListeners();
-    }
+    });
   }
 
-  Future<void> _saveWishes() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String wishString =
-        jsonEncode(_wishes.map((w) => w.toJson()).toList());
-    await prefs.setString(_wishListKey, wishString);
+  Future<void> addWish(Wish wish) async {
+    await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('wishes')
+        .add(wish.toFirestore());
   }
 
-  void addWish(Wish wish) {
-    _wishes.add(wish);
-    _saveWishes();
-    notifyListeners();
-  }
-
-  void removeWish(int index) {
-    _wishes.removeAt(index);
-    _saveWishes();
-    notifyListeners();
+  Future<void> removeWish(String wishId) async {
+    await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('wishes')
+        .doc(wishId)
+        .delete();
   }
 }

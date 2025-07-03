@@ -37,7 +37,7 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
     if (_formKey.currentState!.validate()) {
       final newIngredient = Ingredient(
         id: const Uuid().v4(),
-        name: _nameController.text,
+        ingredientName: _nameController.text,
         quantity: _quantity,
         storageType: _selectedStorageType,
         expirationDate: _selectedExpirationDate, // nullable 허용
@@ -108,7 +108,7 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                         child: TextFormField(
                           controller: _nameController,
                           decoration: const InputDecoration(
-                            labelText: '재료 이름',
+                            hintText: '재료 이름을 입력하세요',
                             border: InputBorder.none,
                             isDense: true,
                             contentPadding: EdgeInsets.symmetric(vertical: 0),
@@ -406,7 +406,7 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                     if (_formKey.currentState!.validate()) {
                       final newIngredient = Ingredient(
                         id: const Uuid().v4(),
-                        name: _nameController.text,
+                        ingredientName: _nameController.text,
                         quantity: _quantity,
                         storageType: _selectedStorageType,
                         expirationDate: _selectedExpirationDate,

@@ -197,38 +197,53 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 const SizedBox(height: 32),
                 // 로그인/로그아웃 버튼
                 if (user != null)
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      Provider.of<FridgeProvider>(context, listen: false)
-                          .clear();
-                      await FirebaseAuth.instance.signOut();
-                      try {
-                        await GoogleSignIn().disconnect();
-                      } catch (_) {}
-                      try {
-                        await GoogleSignIn().signOut();
-                      } catch (_) {}
-                      print(
-                          'user after signOut: \\${FirebaseAuth.instance.currentUser}');
-                      if (context.mounted) {
-                        setState(() {}); // UI 강제 갱신
-                        Navigator.of(context)
-                            .popUntil((route) => route.isFirst);
-                      }
-                    },
-                    icon: const Icon(Icons.logout),
-                    label: const Text('로그아웃'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[600],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 12),
-                      textStyle: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
+                  _isSaving
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: CircularProgressIndicator(),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: () async {
+                            setState(() => _isSaving = true);
+                            try {
+                              Provider.of<FridgeProvider>(context,
+                                      listen: false)
+                                  .clear();
+                              await FirebaseAuth.instance.signOut();
+                              try {
+                                await GoogleSignIn().disconnect();
+                              } catch (_) {}
+                              try {
+                                await GoogleSignIn().signOut();
+                              } catch (_) {}
+                              if (mounted) {
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(
+                                      builder: (_) => const LoginScreen()),
+                                  (route) => false,
+                                );
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('로그아웃에 실패했습니다: $e')),
+                              );
+                            } finally {
+                              if (mounted) setState(() => _isSaving = false);
+                            }
+                          },
+                          icon: const Icon(Icons.logout),
+                          label: const Text('로그아웃'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[600],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 32, vertical: 12),
+                            textStyle: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
                 if (user != null) const SizedBox(height: 16),
                 if (user != null)
                   ElevatedButton.icon(
@@ -263,8 +278,28 @@ class _MyPageScreenState extends State<MyPageScreen> {
                               // 2. users/{uid} 문서 삭제
                               await userDoc.delete();
 
-                              // 3. Firebase Auth 계정 삭제
-                              await user.delete();
+                              // 3. Firebase Auth 계정 삭제 (재인증 포함)
+                              try {
+                                await user.delete();
+                              } on FirebaseAuthException catch (e) {
+                                if (e.code == 'requires-recent-login') {
+                                  // Google 재인증
+                                  final googleUser =
+                                      await GoogleSignIn().signIn();
+                                  final googleAuth =
+                                      await googleUser?.authentication;
+                                  final credential =
+                                      GoogleAuthProvider.credential(
+                                    accessToken: googleAuth?.accessToken,
+                                    idToken: googleAuth?.idToken,
+                                  );
+                                  await user
+                                      .reauthenticateWithCredential(credential);
+                                  await user.delete();
+                                } else {
+                                  rethrow;
+                                }
+                              }
 
                               // 4. Google 세션 완전 해제
                               try {
@@ -274,13 +309,16 @@ class _MyPageScreenState extends State<MyPageScreen> {
                                 await GoogleSignIn().signOut();
                               } catch (_) {}
 
-                              // 5. Provider 상태 초기화 및 홈으로 이동
+                              // 5. Provider 상태 초기화 및 로그인 페이지로 이동
                               Provider.of<FridgeProvider>(context,
                                       listen: false)
                                   .clear();
                               if (context.mounted) {
-                                Navigator.of(context)
-                                    .popUntil((route) => route.isFirst);
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(
+                                      builder: (_) => const LoginScreen()),
+                                  (route) => false,
+                                );
                               }
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(

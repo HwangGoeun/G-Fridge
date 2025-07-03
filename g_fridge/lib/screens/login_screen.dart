@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import '../providers/fridge_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'fridge_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -52,12 +53,17 @@ class _LoginScreenState extends State<LoginScreen> {
               .doc(user.uid)
               .get();
           final nickname = userDoc.data()?['nickname'];
-          if (!userDoc.exists) {
+          if (nickname == null || (nickname is String && nickname.isEmpty)) {
             final defaultNickname = fridgeProvider.generateDefaultNickname();
             await FirebaseFirestore.instance
                 .collection('users')
                 .doc(user.uid)
-                .set({'nickname': defaultNickname}, SetOptions(merge: true));
+                .set({
+              'nickname': defaultNickname,
+              'email': user.email,
+              'displayName': user.displayName,
+              'createdAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
             print('[LoginScreen] 신규 유저 닉네임 생성');
             await fridgeProvider.initializeFromFirestore();
           }
@@ -67,20 +73,28 @@ class _LoginScreenState extends State<LoginScreen> {
           print('[LoginScreen] FridgeProvider 초기화 완료');
           await fridgeProvider.loadMyNickname();
         }
-        // 로그인 성공 후 화면 닫기
-        if (mounted) Navigator.of(context).pop();
+        // 로그인 성공 후 홈(FridgeScreen)으로 이동
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const FridgeScreen()),
+            (route) => false,
+          );
+        }
       }
     } catch (e) {
       // Handle error
+      if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text('Failed to sign in with Google: $e'),
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -102,21 +116,14 @@ class _LoginScreenState extends State<LoginScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.kitchen,
-                      size: screenHeidth * 0.16, color: Colors.blue[600]),
-                  SizedBox(height: screenHeidth * 0.01),
-                  Text(
-                    'FRIENDGE',
-                    style: TextStyle(
-                      fontSize: screenHeidth * 0.08,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[600],
-                    ),
+                  SizedBox(
+                    width: 300,
+                    child: Image.asset('assets/friendge_1_short.png'),
                   ),
-                  SizedBox(height: screenWidth * 0.02),
+                  const SizedBox(height: 15),
                   const Text(
                     '함께 채우는 냉장고, 프렌지',
-                    style: TextStyle(fontSize: 16, color: Colors.black54),
+                    // style: TextStyle(fontSize: 16, color: Colors.black54),
                   ),
                   SizedBox(height: screenHeidth * 0.05),
                   SizedBox(
@@ -187,12 +194,17 @@ class GoogleAuthHelper {
               .doc(user.uid)
               .get();
           final nickname = userDoc.data()?['nickname'];
-          if (!userDoc.exists) {
+          if (nickname == null || (nickname is String && nickname.isEmpty)) {
             final defaultNickname = fridgeProvider.generateDefaultNickname();
             await FirebaseFirestore.instance
                 .collection('users')
                 .doc(user.uid)
-                .set({'nickname': defaultNickname}, SetOptions(merge: true));
+                .set({
+              'nickname': defaultNickname,
+              'email': user.email,
+              'displayName': user.displayName,
+              'createdAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
             await fridgeProvider.initializeFromFirestore();
           }
           await fridgeProvider.loadMyNickname();

@@ -50,216 +50,126 @@ class IngredientCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    return Stack(
-      children: [
-        Builder(
-          builder: (context) {
-            int? daysLeft;
-            if (ingredient.expirationDate != null) {
-              final now = DateTime.now();
-              final exp = ingredient.expirationDate!;
-              final expDate = DateTime(exp.year, exp.month, exp.day);
-              final today = DateTime(now.year, now.month, now.day);
-              daysLeft = expDate.difference(today).inDays;
-            }
-            Color cardColor = Colors.white;
-            BoxBorder? cardBorder;
-            if (daysLeft != null && daysLeft <= 7) {
-              cardColor = const Color(
-                  0xFFFFEBEE); // light red for both expired and soon
-              cardBorder = Border.all(color: Colors.red[200]!, width: 1);
-            }
-            return Container(
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(size.width * 0.038),
-                border: cardBorder,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.08),
-                    spreadRadius: size.width * 0.0085,
-                    blurRadius: size.width * 0.017,
-                    offset: Offset(0, size.height * 0.0017),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: size.height * 0.01),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+    int? daysLeft;
+    if (ingredient.expirationDate != null) {
+      final now = DateTime.now();
+      final exp = ingredient.expirationDate!;
+      final expDate = DateTime(exp.year, exp.month, exp.day);
+      final today = DateTime(now.year, now.month, now.day);
+      daysLeft = expDate.difference(today).inDays;
+    }
+    return SizedBox(
+      child: Stack(
+        children: [
+          // 카드 배경/테두리
+          Container(
+            decoration: BoxDecoration(
+              color: daysLeft != null && daysLeft < 0
+                  ? const Color(0x00ffcccc).withOpacity(0.6)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: daysLeft != null && daysLeft < 0
+                  ? Border.all(color: Colors.red.withOpacity(0.1))
+                  : Border.all(color: Colors.grey.withOpacity(0.1)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.08),
+                  spreadRadius: size.width * 0.0085,
+                  blurRadius: size.width * 0.017,
+                  offset: Offset(0, size.height * 0.0017),
+                ),
+              ],
+            ),
+          ),
+          // 카드 내용
+          Padding(
+            padding: EdgeInsets.symmetric(
+                vertical: size.height * 0.01, horizontal: size.width * 0.03),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: size.width * 0.042),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          selectionMode
-                              ? Checkbox(
-                                  value: checked,
-                                  onChanged: (_) {
-                                    if (onCheckChanged != null) {
-                                      onCheckChanged!();
-                                    }
-                                  },
-                                )
-                              : IconButton(
-                                  icon: Icon(
-                                    isInCart
-                                        ? Icons.shopping_cart
-                                        : Icons.shopping_cart_outlined,
-                                    color:
-                                        isInCart ? Colors.green : Colors.grey,
-                                    size: size.width * 0.051,
-                                  ),
-                                  onPressed: () {
-                                    if (isInCart) {
-                                      Provider.of<ShoppingCartProvider>(context,
-                                              listen: false)
-                                          .removeItem(ingredient);
-                                    } else {
-                                      onCart();
-                                    }
-                                  },
-                                  splashRadius: size.width * 0.051,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  tooltip: isInCart ? '장바구니에서 제거' : '장바구니에 추가',
-                                ),
-                          selectionMode
-                              ? const SizedBox.shrink()
-                              : IconButton(
-                                  icon: Icon(Icons.close,
-                                      color: Colors.grey,
-                                      size: size.width * 0.051),
-                                  onPressed: onDelete,
-                                  splashRadius: size.width * 0.051,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  tooltip: '재료 삭제',
-                                ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: size.width * 0.075),
+                    SizedBox(
+                      width: size.width * 0.3,
                       child: Text(
-                        ingredient.name,
-                        style: TextStyle(
-                          fontSize: size.width * 0.042, // 16% 감소
+                        ingredient.ingredientName,
+                        style: const TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    SizedBox(height: size.height * 0.0034), // 15% 감소
-                    if (ingredient.expirationDate != null)
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: size.width * 0.075),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Text(
-                              ingredient.expirationDate != null
-                                  ? '${ingredient.expirationDate!.year}.${ingredient.expirationDate!.month.toString().padLeft(2, '0')}.${ingredient.expirationDate!.day.toString().padLeft(2, '0')}'
-                                  : '',
-                              style: TextStyle(
-                                fontSize: size.width * 0.032, // 16% 감소
-                                color: daysLeft != null && daysLeft < 0
-                                    ? Colors.red
-                                    : daysLeft != null && daysLeft == 0
-                                        ? Colors.red
-                                        : daysLeft != null && daysLeft <= 7
-                                            ? Colors.red
-                                            : Colors.grey[700],
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const Spacer(),
-                            if (daysLeft != null && daysLeft < 0)
-                              Text(
-                                '${daysLeft.abs()}일 지남',
-                                style: TextStyle(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: size.width * 0.032), // 16% 감소
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            else if (daysLeft != null && daysLeft == 0)
-                              Text(
-                                '소비기한 오늘까지',
-                                style: TextStyle(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: size.width * 0.032), // 16% 감소
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            else if (daysLeft != null && daysLeft <= 7)
-                              Text(
-                                '$daysLeft일 남음',
-                                style: TextStyle(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: size.width * 0.032), // 16% 감소
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            else
-                              const SizedBox.shrink(),
-                          ],
+                    if (!selectionMode)
+                      Text(
+                        '${ingredient.quantity}개',
+                        style: const TextStyle(
+                          fontSize: 13,
                         ),
                       ),
-                    Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: size.width * 0.042),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          if (!selectionMode) ...[
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(Icons.remove_circle_outline,
-                                  color: Colors.grey, size: size.width * 0.051),
-                              onPressed: onDecrease,
-                            ),
-                            SizedBox(
-                              child: Text(
-                                ingredient.quantity.toString(),
-                                style: TextStyle(
-                                    fontSize: size.width * 0.038,
-                                    fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(Icons.add_circle_outline,
-                                  color: Colors.grey, size: size.width * 0.051),
-                              onPressed: onIncrease,
-                            ),
-                          ],
-                        ],
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      ingredient.expirationDate != null
+                          ? '${ingredient.expirationDate!.year}.${ingredient.expirationDate!.month.toString().padLeft(2, '0')}.${ingredient.expirationDate!.day.toString().padLeft(2, '0')}'
+                          : '',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      daysLeft == null
+                          ? ''
+                          : daysLeft < 0
+                              ? '${daysLeft.abs()}일 지남'
+                              : daysLeft == 0
+                                  ? '오늘까지'
+                                  : '$daysLeft일 남음',
+                      style: TextStyle(
+                        color: daysLeft == null
+                            ? Colors.grey
+                            : daysLeft < 0 || daysLeft <= 7
+                                ? Colors.red
+                                : Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+          // 전체 선택 모드일 때만 체크박스
+          if (selectionMode)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Transform.scale(
+                scale: 0.7,
+                child: Checkbox(
+                  value: checked,
+                  onChanged: (_) {
+                    if (onCheckChanged != null) onCheckChanged!();
+                  },
+                  visualDensity: VisualDensity.compact,
+                ),
               ),
-            );
-          },
-        ),
-      ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -276,8 +186,11 @@ class _FridgeScreenState extends State<FridgeScreen>
   late TabController _tabController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedTabIndex = 0;
-  bool _isSelectionMode = false;
-  Set<String> _selectedIds = {};
+  // 탭별 selectionMode 분리
+  bool _fridgeSelectionMode = false;
+  bool _cartSelectionMode = false;
+  Set<String> _fridgeSelectedIds = {};
+  final Set<String> _cartSelectedIds = {};
 
   @override
   void initState() {
@@ -304,43 +217,52 @@ class _FridgeScreenState extends State<FridgeScreen>
     });
   }
 
-  void _toggleSelectionMode(List<Ingredient> ingredients) {
+  void _toggleFridgeSelectionMode(List<Ingredient> ingredients) {
     setState(() {
-      _isSelectionMode = !_isSelectionMode;
-      if (!_isSelectionMode) {
-        _selectedIds.clear();
+      _fridgeSelectionMode = !_fridgeSelectionMode;
+      if (!_fridgeSelectionMode) {
+        _fridgeSelectedIds.clear();
+      }
+    });
+  }
+
+  void _toggleCartSelectionMode(List cartItems) {
+    setState(() {
+      _cartSelectionMode = !_cartSelectionMode;
+      if (!_cartSelectionMode) {
+        _cartSelectedIds.clear();
       }
     });
   }
 
   void _toggleSelect(String id) {
     setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
+      if (_fridgeSelectedIds.contains(id)) {
+        _fridgeSelectedIds.remove(id);
       } else {
-        _selectedIds.add(id);
+        _fridgeSelectedIds.add(id);
       }
     });
   }
 
   void _selectAll(List<Ingredient> ingredients) {
     setState(() {
-      if (_selectedIds.length == ingredients.length) {
-        _selectedIds.clear();
+      if (_fridgeSelectedIds.length == ingredients.length) {
+        _fridgeSelectedIds.clear();
       } else {
-        _selectedIds = ingredients.map((i) => i.id).toSet();
+        _fridgeSelectedIds = ingredients.map((i) => i.id).toSet();
       }
     });
   }
 
   void _deleteSelected(FridgeProvider fridgeProvider) {
-    final idsToDelete = _selectedIds.toList();
+    final idsToDelete = _fridgeSelectedIds.toList();
     for (final id in idsToDelete) {
       fridgeProvider.removeIngredientFromCurrentFridge(id);
     }
     setState(() {
-      _selectedIds.clear();
-      _isSelectionMode = false;
+      _fridgeSelectedIds.clear();
+      _fridgeSelectionMode = false;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('선택한 재료가 삭제되었습니다.')),
@@ -352,63 +274,68 @@ class _FridgeScreenState extends State<FridgeScreen>
       List<Ingredient> ingredients,
       IngredientProvider provider,
       FridgeProvider fridgeProvider,
-      String emptyMessage) {
+      String emptyMessage,
+      {bool selectionMode = false,
+      Set<String> selectedIds = const {},
+      void Function(String id)? onToggleSelect}) {
     if (ingredients.isEmpty) {
       return Center(child: Text(emptyMessage));
     } else {
-      return ListView.separated(
-        padding: const EdgeInsets.only(top: 15, bottom: 15),
+      return GridView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2, // 한 줄에 2개
+          mainAxisSpacing: 12, // 세로 간격
+          crossAxisSpacing: 12, // 가로 간격
+          childAspectRatio: 2.6, // 카드 비율(가로/세로)
+        ),
         itemCount: ingredients.length,
         itemBuilder: (context, index) {
           final ingredient = ingredients[index];
           final cartProvider = Provider.of<ShoppingCartProvider>(context);
           final isInCart =
               cartProvider.cartItems.any((item) => item.id == ingredient.id);
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: GestureDetector(
-              onTap: _isSelectionMode
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EditIngredientScreen(
-                            ingredient: ingredient,
-                            ingredientIndex: index,
-                          ),
+          return GestureDetector(
+            onTap: selectionMode
+                ? null
+                : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditIngredientScreen(
+                          ingredient: ingredient,
                         ),
-                      );
-                    },
-              child: IngredientCard(
-                ingredient: ingredient,
-                onDelete: () => fridgeProvider
-                    .removeIngredientFromCurrentFridge(ingredient.id),
-                onIncrease: () => fridgeProvider
-                    .increaseQuantityInCurrentFridge(ingredient.id),
-                onDecrease: () => fridgeProvider
-                    .decreaseQuantityInCurrentFridge(ingredient.id),
-                onCart: () {
-                  final ingredientForCart = Ingredient(
-                    id: ingredient.id,
-                    name: ingredient.name,
-                    storageType: ingredient.storageType,
-                    quantity: 1.0,
-                    expirationDate: null,
-                  );
-                  Provider.of<ShoppingCartProvider>(context, listen: false)
-                      .addItem(ingredientForCart);
-                  setState(() {});
-                },
-                isInCart: isInCart,
-                selectionMode: _isSelectionMode,
-                checked: _selectedIds.contains(ingredient.id),
-                onCheckChanged: () => _toggleSelect(ingredient.id),
-              ),
+                      ),
+                    );
+                  },
+            child: IngredientCard(
+              ingredient: ingredient,
+              onDelete: () => fridgeProvider
+                  .removeIngredientFromCurrentFridge(ingredient.id),
+              onIncrease: () =>
+                  fridgeProvider.increaseQuantityInCurrentFridge(ingredient.id),
+              onDecrease: () =>
+                  fridgeProvider.decreaseQuantityInCurrentFridge(ingredient.id),
+              onCart: () {
+                final ingredientForCart = Ingredient(
+                  id: ingredient.id,
+                  ingredientName: ingredient.ingredientName,
+                  storageType: ingredient.storageType,
+                  quantity: 1.0,
+                  expirationDate: null,
+                );
+                Provider.of<ShoppingCartProvider>(context, listen: false)
+                    .addItem(ingredientForCart);
+              },
+              isInCart: isInCart,
+              selectionMode: selectionMode,
+              checked: selectedIds.contains(ingredient.id),
+              onCheckChanged: onToggleSelect == null
+                  ? null
+                  : () => onToggleSelect(ingredient.id),
             ),
           );
         },
-        separatorBuilder: (context, index) => const SizedBox(height: 16),
       );
     }
   }
@@ -741,11 +668,19 @@ class _FridgeScreenState extends State<FridgeScreen>
               // 냉장고 목록
               Expanded(
                 child: fridgeProvider.isUserReady
-                    ? ListView(
+                    ? ReorderableListView(
                         padding: EdgeInsets.zero,
+                        onReorder: (oldIndex, newIndex) async {
+                          // ReorderableListView의 newIndex는 뒤로 이동 시 +1이므로 보정 필요
+                          if (newIndex > oldIndex) newIndex -= 1;
+                          await Provider.of<FridgeProvider>(context,
+                                  listen: false)
+                              .moveFridgeOrder(oldIndex, newIndex);
+                        },
                         children: [
                           // 냉장고 목록 헤더
                           Container(
+                            key: const ValueKey('fridge-header'),
                             padding: const EdgeInsets.all(16),
                             child: Row(
                               children: [
@@ -767,23 +702,33 @@ class _FridgeScreenState extends State<FridgeScreen>
                             ),
                           ),
                           // 냉장고 아이템들
-                          ...fridgeProvider.fridges.map((fridge) {
+                          ...fridgeProvider.fridges
+                              .asMap()
+                              .entries
+                              .map((entry) {
+                            final index = entry.key;
+                            final fridge = entry.value;
                             final ingredients = fridgeProvider
                                 .getIngredientsForFridge(fridge.id);
                             String subtitle = fridge.type;
-                            return _buildFridgeItem(
-                              context,
-                              fridge.id,
-                              fridge.name,
-                              subtitle,
-                              '재료 ${ingredients.length}개',
-                              _getFridgeIcon(fridge.type),
-                              _getFridgeColor(fridge.type),
+                            return Container(
+                              key: ValueKey('fridge-${fridge.id}'),
+                              child: _buildFridgeItem(
+                                context,
+                                fridge.id,
+                                fridge.name,
+                                subtitle,
+                                '재료 ${ingredients.length}개',
+                                _getFridgeIcon(fridge.type),
+                                _getFridgeColor(fridge.type),
+                              ),
                             );
                           }).toList(),
-                          const Divider(height: 32),
+                          const Divider(
+                              height: 32, key: ValueKey('fridge-divider')),
                           // 새 냉장고 추가 버튼
                           ListTile(
+                            key: const ValueKey('fridge-add'),
                             leading: Container(
                               width: 40,
                               height: 40,
@@ -841,7 +786,7 @@ class _FridgeScreenState extends State<FridgeScreen>
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black87,
-        title: _isSelectionMode
+        title: _selectedTabIndex == 0 && _fridgeSelectionMode
             ? Row(
                 children: [
                   IconButton(
@@ -849,24 +794,15 @@ class _FridgeScreenState extends State<FridgeScreen>
                     tooltip: '뒤로가기',
                     onPressed: () {
                       setState(() {
-                        _isSelectionMode = false;
-                        _selectedIds.clear();
+                        _fridgeSelectionMode = false;
+                        _fridgeSelectedIds.clear();
                       });
                     },
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '전체 선택 모드',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                      color: Colors.black87,
-                    ),
                   ),
                   const Spacer(),
                   IconButton(
                     icon: Icon(
-                      _selectedIds.length ==
+                      _fridgeSelectedIds.length ==
                                   Provider.of<FridgeProvider>(context,
                                           listen: false)
                                       .currentFridgeIngredients
@@ -886,9 +822,36 @@ class _FridgeScreenState extends State<FridgeScreen>
                     },
                   ),
                   IconButton(
+                    icon: const Icon(Icons.shopping_cart),
+                    tooltip: '선택한 재료 장바구니에 추가',
+                    onPressed: _fridgeSelectedIds.isEmpty
+                        ? null
+                        : () {
+                            final fridgeProvider = Provider.of<FridgeProvider>(
+                                context,
+                                listen: false);
+                            final cartProvider =
+                                Provider.of<ShoppingCartProvider>(context,
+                                    listen: false);
+                            final selectedIngredients = fridgeProvider
+                                .currentFridgeIngredients
+                                .where((i) => _fridgeSelectedIds.contains(i.id))
+                                .toList();
+                            for (final ingredient in selectedIngredients) {
+                              cartProvider.addItem(ingredient);
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('선택한 재료가 장바구니에 추가되었습니다!'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.delete_outline),
                     tooltip: '선택 삭제',
-                    onPressed: _selectedIds.isEmpty
+                    onPressed: _fridgeSelectedIds.isEmpty
                         ? null
                         : () {
                             final fridgeProvider = Provider.of<FridgeProvider>(
@@ -899,154 +862,183 @@ class _FridgeScreenState extends State<FridgeScreen>
                   ),
                 ],
               )
-            : Text(currentFridge?.name ?? 'G Fridge'),
-        actions: _isSelectionMode
-            ? []
-            : [
-                // WishList button
-                IconButton(
-                  icon: const Icon(Icons.favorite_border),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const WishListScreen()),
-                    );
-                  },
-                  tooltip: '위시리스트',
-                ),
-                // Add ingredient button
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const AddIngredientScreen()),
-                    );
-                  },
-                  tooltip: '재료 추가',
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'select') {
-                      final fridgeProvider =
-                          Provider.of<FridgeProvider>(context, listen: false);
-                      _toggleSelectionMode(
-                          fridgeProvider.currentFridgeIngredients);
-                    } else if (value == 'delete_fridge') {
-                      final fridgeProvider =
-                          Provider.of<FridgeProvider>(context, listen: false);
-                      final currentFridge = fridgeProvider.currentFridge;
-                      if (currentFridge == null) return;
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          titlePadding: const EdgeInsets.only(
-                              top: 32, left: 24, right: 24, bottom: 0),
-                          contentPadding: const EdgeInsets.only(
-                              top: 8, left: 24, right: 24, bottom: 0),
-                          actionsPadding: const EdgeInsets.only(
-                              bottom: 16, right: 16, left: 16, top: 16),
-                          title: Column(
-                            children: [
-                              Icon(Icons.kitchen,
-                                  size: 48, color: Colors.blue[600]),
-                              const SizedBox(height: 12),
-                              Text(
-                                '냉장고 삭제',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 22,
-                                  color: Colors.blue[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '정말로 "${currentFridge.name}" 냉장고를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
-                                style: const TextStyle(
-                                    fontSize: 16, color: Colors.black87),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                          actionsAlignment: MainAxisAlignment.center,
-                          actions: [
-                            SizedBox(
-                              width: 110,
-                              height: 40,
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.blue[600],
-                                  side: BorderSide(color: Colors.blue[600]!),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                onPressed: () =>
-                                    Navigator.of(context).pop(false),
-                                child: const Text('취소',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 110,
-                              height: 40,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red[600],
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  elevation: 2,
-                                ),
-                                onPressed: () =>
-                                    Navigator.of(context).pop(true),
-                                child: const Text('삭제',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16)),
-                              ),
-                            ),
-                          ],
+            : _selectedTabIndex == 1 && _cartSelectionMode
+                ? Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        tooltip: '뒤로가기',
+                        onPressed: () {
+                          setState(() {
+                            _cartSelectionMode = false;
+                            _cartSelectedIds.clear();
+                          });
+                        },
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(
+                          _cartSelectedIds.length ==
+                                      Provider.of<ShoppingCartProvider>(context,
+                                              listen: false)
+                                          .cartItems
+                                          .length &&
+                                  Provider.of<ShoppingCartProvider>(context,
+                                          listen: false)
+                                      .cartItems
+                                      .isNotEmpty
+                              ? Icons.check_box
+                              : Icons.check_box_outline_blank,
                         ),
-                      );
-                      if (confirm == true) {
-                        await fridgeProvider
-                            .removeFridgeFirestore(currentFridge.id);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('냉장고가 삭제되었습니다.')),
+                        tooltip: '전체 선택',
+                        onPressed: () {
+                          final cartProvider =
+                              Provider.of<ShoppingCartProvider>(context,
+                                  listen: false);
+                          setState(() {
+                            if (_cartSelectedIds.length ==
+                                cartProvider.cartItems.length) {
+                              _cartSelectedIds.clear();
+                            } else {
+                              _cartSelectedIds.clear();
+                              _cartSelectedIds.addAll(
+                                  cartProvider.cartItems.map((i) => i.id));
+                            }
+                          });
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.kitchen_outlined),
+                        tooltip: '선택한 재료 냉장고에 추가',
+                        onPressed: _cartSelectedIds.isEmpty
+                            ? null
+                            : () {
+                                final cartProvider =
+                                    Provider.of<ShoppingCartProvider>(context,
+                                        listen: false);
+                                final fridgeProvider =
+                                    Provider.of<FridgeProvider>(context,
+                                        listen: false);
+                                final selectedItems = cartProvider.cartItems
+                                    .where(
+                                        (i) => _cartSelectedIds.contains(i.id))
+                                    .toList();
+                                for (final ingredient in selectedItems) {
+                                  final newIngredient = ingredient.copyWith(
+                                    id: DateTime.now()
+                                        .millisecondsSinceEpoch
+                                        .toString(),
+                                    expirationDate: null,
+                                  );
+                                  fridgeProvider.addIngredientToCurrentFridge(
+                                      newIngredient);
+                                  cartProvider.removeItem(ingredient.id);
+                                }
+                                setState(() {
+                                  _cartSelectedIds.clear();
+                                  _cartSelectionMode = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('선택한 재료가 냉장고에 추가되었습니다!'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: '선택 삭제',
+                        onPressed: _cartSelectedIds.isEmpty
+                            ? null
+                            : () {
+                                final cartProvider =
+                                    Provider.of<ShoppingCartProvider>(context,
+                                        listen: false);
+                                final selectedItems = cartProvider.cartItems
+                                    .where(
+                                        (i) => _cartSelectedIds.contains(i.id))
+                                    .toList();
+                                for (final ingredient in selectedItems) {
+                                  cartProvider.removeItem(ingredient.id);
+                                }
+                                setState(() {
+                                  _cartSelectedIds.clear();
+                                  _cartSelectionMode = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('선택한 재료가 삭제되었습니다.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                      ),
+                    ],
+                  )
+                : Text(currentFridge?.name ?? 'G Fridge'),
+        actions: _selectedTabIndex == 0 && _fridgeSelectionMode
+            ? []
+            : _selectedTabIndex == 1 && _cartSelectionMode
+                ? []
+                : [
+                    // 전체 선택 모드 진입/해제 버튼 (냉장고 탭)
+                    if (_selectedTabIndex == 0)
+                      IconButton(
+                        icon: Icon(_fridgeSelectionMode
+                            ? Icons.check_box
+                            : Icons.check_box_outline_blank),
+                        tooltip: _fridgeSelectionMode ? '선택 모드 해제' : '전체 선택 모드',
+                        onPressed: () {
+                          final fridgeProvider = Provider.of<FridgeProvider>(
+                              context,
+                              listen: false);
+                          _toggleFridgeSelectionMode(
+                              fridgeProvider.currentFridgeIngredients);
+                        },
+                      ),
+                    // 전체 선택 모드 진입/해제 버튼 (장바구니 탭)
+                    if (_selectedTabIndex == 1)
+                      IconButton(
+                        icon: Icon(_cartSelectionMode
+                            ? Icons.check_box
+                            : Icons.check_box_outline_blank),
+                        tooltip: _cartSelectionMode ? '선택 모드 해제' : '전체 선택 모드',
+                        onPressed: () {
+                          final cartProvider =
+                              Provider.of<ShoppingCartProvider>(context,
+                                  listen: false);
+                          _toggleCartSelectionMode(cartProvider.cartItems);
+                        },
+                      ),
+                    // WishList button (냉장고 탭에서만)
+                    if (_selectedTabIndex == 0)
+                      IconButton(
+                        icon: const Icon(Icons.favorite_border),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const WishListScreen()),
                           );
-                          setState(() {});
-                        }
-                      }
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'select',
-                      child: Text(_isSelectionMode ? '선택 모드 해제' : '전체 선택 모드'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete_fridge',
-                      child:
-                          Text('냉장고 삭제하기', style: TextStyle(color: Colors.red)),
-                    ),
+                        },
+                        tooltip: '위시리스트',
+                      ),
+                    // Add ingredient button (냉장고 탭에서만)
+                    if (_selectedTabIndex == 0)
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const AddIngredientScreen()),
+                          );
+                        },
+                        tooltip: '재료 추가',
+                      ),
                   ],
-                ),
-              ],
         bottom: _selectedTabIndex == 0
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(48),
@@ -1058,16 +1050,73 @@ class _FridgeScreenState extends State<FridgeScreen>
           ? TabBarView(
               controller: _tabController,
               children: [
-                _buildIngredientListView(refrigeratedIngredients,
-                    ingredientProvider, fridgeProvider, '냉장 재료가 없습니다.'),
-                _buildIngredientListView(frozenIngredients, ingredientProvider,
-                    fridgeProvider, '냉동 재료가 없습니다.'),
-                _buildIngredientListView(roomTemperatureIngredients,
-                    ingredientProvider, fridgeProvider, '실온 재료가 없습니다.'),
+                _buildIngredientListView(
+                  refrigeratedIngredients,
+                  ingredientProvider,
+                  fridgeProvider,
+                  '냉장 재료가 없습니다.',
+                  selectionMode: _fridgeSelectionMode,
+                  selectedIds: _fridgeSelectedIds,
+                  onToggleSelect: (id) {
+                    setState(() {
+                      if (_fridgeSelectedIds.contains(id)) {
+                        _fridgeSelectedIds.remove(id);
+                      } else {
+                        _fridgeSelectedIds.add(id);
+                      }
+                    });
+                  },
+                ),
+                _buildIngredientListView(
+                  frozenIngredients,
+                  ingredientProvider,
+                  fridgeProvider,
+                  '냉동 재료가 없습니다.',
+                  selectionMode: _fridgeSelectionMode,
+                  selectedIds: _fridgeSelectedIds,
+                  onToggleSelect: (id) {
+                    setState(() {
+                      if (_fridgeSelectedIds.contains(id)) {
+                        _fridgeSelectedIds.remove(id);
+                      } else {
+                        _fridgeSelectedIds.add(id);
+                      }
+                    });
+                  },
+                ),
+                _buildIngredientListView(
+                  roomTemperatureIngredients,
+                  ingredientProvider,
+                  fridgeProvider,
+                  '실온 재료가 없습니다.',
+                  selectionMode: _fridgeSelectionMode,
+                  selectedIds: _fridgeSelectedIds,
+                  onToggleSelect: (id) {
+                    setState(() {
+                      if (_fridgeSelectedIds.contains(id)) {
+                        _fridgeSelectedIds.remove(id);
+                      } else {
+                        _fridgeSelectedIds.add(id);
+                      }
+                    });
+                  },
+                ),
               ],
             )
           : _selectedTabIndex == 1
-              ? const ShoppingCartScreen()
+              ? ShoppingCartScreen(
+                  selectionMode: _cartSelectionMode,
+                  selectedIds: _cartSelectedIds,
+                  onToggleSelect: (id) {
+                    setState(() {
+                      if (_cartSelectedIds.contains(id)) {
+                        _cartSelectedIds.remove(id);
+                      } else {
+                        _cartSelectedIds.add(id);
+                      }
+                    });
+                  },
+                )
               : const FridgeInfoScreen(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedTabIndex,

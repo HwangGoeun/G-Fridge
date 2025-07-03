@@ -24,11 +24,6 @@ class FridgeProvider with ChangeNotifier {
   String get currentFridgeId => _currentFridgeId;
 
   Fridge? get currentFridge {
-    // 냉장고가 없으면 기본 냉장고 생성
-    if (_fridges.isEmpty) {
-      createDefaultFridge();
-    }
-
     try {
       return _fridges.firstWhere((fridge) => fridge.id == _currentFridgeId);
     } catch (e) {
@@ -37,11 +32,6 @@ class FridgeProvider with ChangeNotifier {
   }
 
   List<Ingredient> get currentFridgeIngredients {
-    // 냉장고가 없으면 기본 냉장고 생성
-    if (_fridges.isEmpty) {
-      createDefaultFridge();
-    }
-
     return _fridgeIngredients[_currentFridgeId] ?? [];
   }
 
@@ -56,33 +46,24 @@ class FridgeProvider with ChangeNotifier {
     final user = FirebaseAuth.instance.currentUser;
     _isUserReady = false;
     notifyListeners();
-    if (user != null) {
-      print('[FridgeProvider] initialize: user is logged in');
-      await initializeFromFirestore();
-      if (_fridges.isEmpty) {
-        await createDefaultFridge();
+    try {
+      if (user != null) {
+        print('[FridgeProvider] initialize: user is logged in');
+        await initializeFromFirestore();
+        // initializeFromFirestore가 끝난 후에만 _fridges.isEmpty 체크
+        if (_fridges.isEmpty) {
+          await createDefaultFridge();
+          // createDefaultFridge 이후에 initializeFromFirestore를 다시 호출하지 않음
+        }
       }
-    } else {
-      print('[FridgeProvider] initialize: user is NOT logged in');
-      // 비로그인 상태: 로컬에만 기본 냉장고 생성(최초 1회)
-      if (_fridges.isEmpty) {
-        final defaultFridge = Fridge(
-          id: 'home',
-          name: '우리집 냉장고',
-          type: '개인용',
-          creatorId: '',
-        );
-        _fridges = [defaultFridge];
-        _currentFridgeId = defaultFridge.id;
-        _fridgeIngredients[defaultFridge.id] = [];
-        await saveFridgeIngredients();
-        notifyListeners();
-      }
+      await loadFridgeIngredients();
+    } catch (e) {
+      print('[FridgeProvider] initialize error: $e');
+    } finally {
+      _isUserReady = true;
+      print('[FridgeProvider] isUserReady = true (finally)');
+      notifyListeners();
     }
-    await loadFridgeIngredients();
-    _isUserReady = true;
-    print('[FridgeProvider] isUserReady = true');
-    notifyListeners();
   }
 
   // 앱 실행/로그인 시 Firestore에서 닉네임, 냉장고, 재료 전체 fetch (닉네임만 준비되면 isUserReady true)
@@ -115,6 +96,8 @@ class FridgeProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('[FridgeProvider] Firestore fetch error: $e');
+    } finally {
+      // do nothing here, isUserReady is handled by initialize
     }
   }
 
@@ -130,19 +113,28 @@ class FridgeProvider with ChangeNotifier {
   Future<void> addFridge(Fridge fridge) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Firestore의 doc().id로 고유 id 생성
-      final fridgeId = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('fridges')
-          .doc()
-          .id;
-      final fridgeWithCreator =
-          fridge.copyWith(id: fridgeId, creatorId: user.uid);
+      final fridgeDocRef =
+          FirebaseFirestore.instance.collection('fridges').doc();
+      final fridgeId = fridgeDocRef.id;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final code = _generateInviteCode();
+      final fridgeWithCreator = fridge.copyWith(
+        id: fridgeId,
+        creatorId: user.uid,
+        inviteCodes: [
+          {'code': code, 'createdAt': now}
+        ],
+        order: _fridges.length,
+        sharedWith: [],
+      );
       _fridges.add(fridgeWithCreator);
       _fridgeIngredients[fridgeWithCreator.id] = [];
-      await saveFridgeToFirestore(user.uid, fridgeWithCreator);
-      await initializeFromFirestore(); // 목록 재동기화
+      await fridgeDocRef.set(fridgeWithCreator.toJson());
+      // users/{uid} 문서에 fridgeIds 배열에 추가
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'fridgeIds': FieldValue.arrayUnion([fridgeId])
+      }, SetOptions(merge: true));
+      await initializeFromFirestore();
       notifyListeners();
     }
   }
@@ -151,12 +143,15 @@ class FridgeProvider with ChangeNotifier {
   Future<void> removeFridgeFirestore(String fridgeId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    // 글로벌 fridges 컬렉션에서 삭제
     await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
         .collection('fridges')
         .doc(fridgeId)
         .delete();
+    // users/{uid} 문서의 fridgeIds 배열에서 제거
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'fridgeIds': FieldValue.arrayRemove([fridgeId])
+    });
     _fridges.removeWhere((fridge) => fridge.id == fridgeId);
     _fridgeIngredients.remove(fridgeId);
     if (_currentFridgeId == fridgeId && _fridges.isNotEmpty) {
@@ -170,52 +165,51 @@ class FridgeProvider with ChangeNotifier {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
-        // Firestore에 냉장고가 하나도 없을 때만 생성
-        final snapshot = await FirebaseFirestore.instance
+        // Firestore에 내가 소유/참여한 냉장고가 하나도 없을 때만 생성
+        final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
-            .collection('fridges')
             .get();
-        if (snapshot.docs.isEmpty) {
+        final fridgeIds =
+            (userDoc.data()?['fridgeIds'] as List?)?.cast<String>() ?? [];
+        if (fridgeIds.isEmpty) {
+          // 글로벌 fridges 컬렉션에 냉장고 생성
+          final fridgeDocRef =
+              FirebaseFirestore.instance.collection('fridges').doc();
+          final fridgeId = fridgeDocRef.id;
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final code = _generateInviteCode();
           final defaultFridge = Fridge(
-            id: 'home',
+            id: fridgeId,
             name: '우리집 냉장고',
             type: '개인용',
             creatorId: user.uid,
+            inviteCodes: [
+              {'code': code, 'createdAt': now}
+            ],
+            sharedWith: [],
           );
           _fridges = [defaultFridge];
           _currentFridgeId = defaultFridge.id;
           _fridgeIngredients[defaultFridge.id] = [];
-          await saveFridgeToFirestore(user.uid, defaultFridge);
+          await fridgeDocRef.set(defaultFridge.toJson());
+          // users/{uid} 문서에 fridgeIds 배열에 추가
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+            'fridgeIds': FieldValue.arrayUnion([fridgeId])
+          }, SetOptions(merge: true));
           notifyListeners();
         }
       } catch (e) {
         print('[FridgeProvider] createDefaultFridge Firestore error: $e');
       }
-    } else {
-      // 비로그인 상태: 로컬에만 생성
-      if (_fridges.isEmpty) {
-        final defaultFridge = Fridge(
-          id: 'home',
-          name: '우리집 냉장고',
-          type: '개인용',
-          creatorId: '',
-        );
-        _fridges = [defaultFridge];
-        _currentFridgeId = defaultFridge.id;
-        _fridgeIngredients[defaultFridge.id] = [];
-        await saveFridgeIngredients();
-        notifyListeners();
-      }
     }
   }
 
   // 냉장고가 비어있는지 확인하고 기본 냉장고 생성
-  void ensureMinimumFridge() {
-    if (_fridges.isEmpty) {
-      createDefaultFridge();
-    }
-  }
+  // Removed ensureMinimumFridge: not needed for non-logged-in users
 
   // 현재 냉장고에 재료 추가
   Future<void> addIngredientToCurrentFridge(Ingredient ingredient) async {
@@ -302,10 +296,10 @@ class FridgeProvider with ChangeNotifier {
     final index = _fridges.indexWhere((f) => f.id == fridgeId);
     if (index != -1) {
       _fridges[index] = _fridges[index].copyWith(name: newName);
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await saveFridgeToFirestore(user.uid, _fridges[index]);
-      }
+      await FirebaseFirestore.instance
+          .collection('fridges')
+          .doc(fridgeId)
+          .update({'name': newName});
       notifyListeners();
     }
   }
@@ -315,10 +309,10 @@ class FridgeProvider with ChangeNotifier {
     final index = _fridges.indexWhere((f) => f.id == fridgeId);
     if (index != -1) {
       _fridges[index] = _fridges[index].copyWith(type: newType);
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await saveFridgeToFirestore(user.uid, _fridges[index]);
-      }
+      await FirebaseFirestore.instance
+          .collection('fridges')
+          .doc(fridgeId)
+          .update({'type': newType});
       notifyListeners();
     }
   }
@@ -346,27 +340,37 @@ class FridgeProvider with ChangeNotifier {
   }
 
   Future<void> loadMyNickname() async {
-    _isUserReady = false;
-    notifyListeners();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      _myNickname = null;
+    try {
+      _isUserReady = false;
+      notifyListeners();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        _myNickname = null;
+        return;
+      }
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final nickname = doc.data()?['nickname'];
+      if (nickname == null || (nickname is String && nickname.isEmpty)) {
+        final defaultNickname = generateDefaultNickname();
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({'nickname': defaultNickname}, SetOptions(merge: true));
+      }
+      if (nickname != null && nickname is String && nickname.isNotEmpty) {
+        _myNickname = nickname;
+      } else {
+        _myNickname = null;
+      }
+    } catch (e) {
+      print('[FridgeProvider] loadMyNickname error: $e');
+    } finally {
       _isUserReady = true;
       notifyListeners();
-      return;
     }
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    final nickname = doc.data()?['nickname'];
-    if (nickname != null && nickname is String && nickname.isNotEmpty) {
-      _myNickname = nickname;
-    } else {
-      _myNickname = null;
-    }
-    _isUserReady = true;
-    notifyListeners();
   }
 
   String? getMyNickname() {
@@ -385,8 +389,6 @@ class FridgeProvider with ChangeNotifier {
   Future<void> saveFridgeToFirestore(String userId, Fridge fridge) async {
     // nickname 여부와 관계없이 무조건 저장
     await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
         .collection('fridges')
         .doc(fridge.id)
         .set(fridge.toJson());
@@ -396,8 +398,6 @@ class FridgeProvider with ChangeNotifier {
   Future<void> fetchIngredientsFromFirestore(
       String uid, String fridgeId) async {
     final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
         .collection('fridges')
         .doc(fridgeId)
         .collection('ingredients')
@@ -411,11 +411,9 @@ class FridgeProvider with ChangeNotifier {
   Future<void> saveIngredientToFirestore(
       String uid, String fridgeId, Ingredient ingredient) async {
     print(
-        '[saveIngredientToFirestore] path=users/$uid/fridges/$fridgeId/ingredients/${ingredient.id}');
+        '[saveIngredientToFirestore] path=fridges/$fridgeId/ingredients/${ingredient.id}');
     print('[saveIngredientToFirestore] data=${ingredient.toJson()}');
     await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
         .collection('fridges')
         .doc(fridgeId)
         .collection('ingredients')
@@ -427,8 +425,6 @@ class FridgeProvider with ChangeNotifier {
   Future<void> removeIngredientFromFirestore(
       String uid, String fridgeId, String ingredientId) async {
     await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
         .collection('fridges')
         .doc(fridgeId)
         .collection('ingredients')
@@ -438,17 +434,28 @@ class FridgeProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Firestore에서 냉장고 전체 목록 불러오기
+  // Firestore에서 냉장고 전체 목록 불러오기 (내가 소유/참여한 것만)
   Future<void> fetchFridgesFromFirestore(String uid) async {
     print('[FridgeProvider] fetchFridgesFromFirestore() called');
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final fridgeIds =
+          (userDoc.data()?['fridgeIds'] as List?)?.cast<String>() ?? [];
+      if (fridgeIds.isEmpty) {
+        _fridges = [];
+        notifyListeners();
+        return;
+      }
+      final fridgesSnapshot = await FirebaseFirestore.instance
           .collection('fridges')
+          .where(FieldPath.documentId, whereIn: fridgeIds)
           .get();
-      _fridges =
-          snapshot.docs.map((doc) => Fridge.fromJson(doc.data())).toList();
+      _fridges = fridgesSnapshot.docs
+          .map((doc) => Fridge.fromJson(doc.data()))
+          .toList();
+      // order 기준 정렬
+      _fridges.sort((a, b) => (a.order ?? 0).compareTo(b.order ?? 0));
       print('[FridgeProvider] _fridges.length = \\${_fridges.length}');
       if (_fridges.isNotEmpty) {
         _currentFridgeId = _fridges.first.id;
@@ -459,10 +466,129 @@ class FridgeProvider with ChangeNotifier {
     }
   }
 
+  // 6자리 영문+숫자 초대코드 생성 (재사용)
+  String _generateInviteCode() {
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    final rand = Random.secure();
+    return List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join();
+  }
+
+  // 공유하기 버튼에서 호출: 새로운 초대코드 생성 및 Firestore inviteCodes 컬렉션에 저장
+  Future<String?> addInviteCodeToFridge(String fridgeId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+    final fridgeIndex = _fridges.indexWhere((f) => f.id == fridgeId);
+    if (fridgeIndex == -1) return null;
+    final code = _generateInviteCode();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    // inviteCodes 컬렉션에 저장
+    await FirebaseFirestore.instance.collection('inviteCodes').doc(code).set({
+      'code': code,
+      'fridgeId': fridgeId,
+      'createdAt': now,
+      'valid': true, // 유효한 코드임을 명시적으로 저장
+    });
+    return code;
+  }
+
+  // 초대코드로 냉장고 참여 (inviteCodes 컬렉션 기반)
+  Future<bool> joinFridgeByCode(String inviteCode) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    try {
+      final code = inviteCode.trim();
+      print('[joinFridgeByCode] 입력 코드: "$code"');
+      // inviteCodes 컬렉션에서 code로 쿼리
+      final codeDoc = await FirebaseFirestore.instance
+          .collection('inviteCodes')
+          .doc(code)
+          .get();
+      print('[joinFridgeByCode] codeDoc.exists: \\${codeDoc.exists}');
+      if (!codeDoc.exists) {
+        print('[joinFridgeByCode] 코드 문서 없음');
+        return false;
+      }
+      final data = codeDoc.data()!;
+      final fridgeId = data['fridgeId'] as String?;
+      final createdAt = data['createdAt'] as int?;
+      final isValid = data['valid'] == true;
+      print(
+          '[joinFridgeByCode] fridgeId: \\${fridgeId?.toString() ?? 'null'}, createdAt: \\${createdAt?.toString() ?? 'null'}, valid: \\${isValid.toString()}');
+      if (fridgeId == null || createdAt == null || !isValid) {
+        print('[joinFridgeByCode] fridgeId 또는 createdAt 없음, 또는 유효하지 않은 코드');
+        // 코드가 유효하지 않으면 삭제
+        await codeDoc.reference.update({'valid': false, 'reason': 'invalid'});
+        await codeDoc.reference.delete();
+        return false;
+      }
+      const expire = Duration(days: 7);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      print('[joinFridgeByCode] now: $now, expire: \\${expire.inMilliseconds}');
+      if (now - createdAt > expire.inMilliseconds) {
+        print('[joinFridgeByCode] 코드 만료됨');
+        // 만료된 경우 valid를 false, reason을 'expired'로 업데이트 후 삭제
+        await codeDoc.reference.update({'valid': false, 'reason': 'expired'});
+        await codeDoc.reference.delete();
+        return false;
+      }
+      // 냉장고 문서의 sharedWith에 추가
+      final fridgeDoc = await FirebaseFirestore.instance
+          .collection('fridges')
+          .doc(fridgeId)
+          .get();
+      if (!fridgeDoc.exists) {
+        print('[joinFridgeByCode] 냉장고 문서 없음');
+        return false;
+      }
+      final fridgeData = fridgeDoc.data()!;
+      final sharedWith = List<String>.from(fridgeData['sharedWith'] ?? []);
+      if (!sharedWith.contains(user.uid)) {
+        print('[joinFridgeByCode] sharedWith에 추가');
+        await fridgeDoc.reference.update({
+          'sharedWith': FieldValue.arrayUnion([user.uid])
+        });
+        // users/{uid}/fridgeIds에 fridgeId 추가
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'fridgeIds': FieldValue.arrayUnion([fridgeId])
+        }, SetOptions(merge: true));
+      }
+      // 초대코드 문서 삭제(1회용) 및 valid false, reason 'used'로 업데이트
+      print('[joinFridgeByCode] 코드 문서 삭제');
+      await codeDoc.reference.update({'valid': false, 'reason': 'used'});
+      await codeDoc.reference.delete();
+      // 내 냉장고 목록 동기화
+      await initializeFromFirestore();
+      print('[joinFridgeByCode] 참여 성공');
+      return true;
+    } catch (e) {
+      print('[joinFridgeByCode] error: $e');
+      return false;
+    }
+  }
+
   // 닉네임 생성 시 항상 '프렌지' + 랜덤숫자 4자리로 생성
   String generateDefaultNickname() {
     final rand = Random.secure();
     final randomDigits = List.generate(4, (_) => rand.nextInt(10)).join();
     return '프렌지$randomDigits';
+  }
+
+  // 냉장고 순서 변경 (드래그&드롭)
+  Future<void> moveFridgeOrder(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 ||
+        newIndex < 0 ||
+        oldIndex >= _fridges.length ||
+        newIndex >= _fridges.length) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final fridge = _fridges.removeAt(oldIndex);
+    _fridges.insert(newIndex, fridge);
+    // order 값 재할당
+    for (int i = 0; i < _fridges.length; i++) {
+      _fridges[i] = _fridges[i].copyWith(order: i);
+      await saveFridgeToFirestore(user.uid, _fridges[i]);
+    }
+    notifyListeners();
   }
 }

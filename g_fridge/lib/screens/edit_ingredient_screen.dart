@@ -7,9 +7,7 @@ import '../providers/fridge_provider.dart';
 
 class EditIngredientScreen extends StatefulWidget {
   final Ingredient ingredient;
-  final int ingredientIndex;
-  const EditIngredientScreen(
-      {super.key, required this.ingredient, required this.ingredientIndex});
+  const EditIngredientScreen({super.key, required this.ingredient});
 
   @override
   State<EditIngredientScreen> createState() => _EditIngredientScreenState();
@@ -32,7 +30,7 @@ class _EditIngredientScreenState extends State<EditIngredientScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController.text = widget.ingredient.name;
+    _nameController.text = widget.ingredient.ingredientName;
     _quantity = widget.ingredient.quantity;
     _selectedStorageType = widget.ingredient.storageType;
     _selectedExpirationDate = widget.ingredient.expirationDate;
@@ -44,36 +42,26 @@ class _EditIngredientScreenState extends State<EditIngredientScreen> {
     super.dispose();
   }
 
-  void _addIngredientToCart() {
+  void _updateIngredient() {
     if (_formKey.currentState!.validate()) {
-      final newIngredient = Ingredient(
-        id: widget.ingredient.id,
-        name: _nameController.text,
+      final updatedIngredient = widget.ingredient.copyWith(
+        ingredientName: _nameController.text,
         quantity: _quantity,
         storageType: _selectedStorageType,
-        expirationDate: _selectedExpirationDate, // nullable 허용
+        expirationDate: _selectedExpirationDate,
       );
 
-      // Add ingredient to shopping cart using the provider
-      Provider.of<ShoppingCartProvider>(context, listen: false)
-          .addItem(newIngredient);
+      Provider.of<IngredientProvider>(context, listen: false)
+          .updateIngredient(updatedIngredient);
 
-      // Show a success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('장바구니에 추가되었습니다!'),
+          content: Text('재료가 수정되었습니다!'),
           duration: Duration(seconds: 2),
         ),
       );
 
-      // Optionally navigate back or clear the form
-      // Navigator.pop(context);
-      _nameController.clear();
-      setState(() {
-        _quantity = 1.0;
-        _selectedStorageType = StorageType.refrigerated;
-        _selectedExpirationDate = null;
-      });
+      Navigator.pop(context);
     }
   }
 
@@ -113,7 +101,7 @@ class _EditIngredientScreenState extends State<EditIngredientScreen> {
                   child: TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      labelText: '재료 이름',
+                      hintText: '재료 이름을 입력하세요',
                       border: InputBorder.none,
                       prefixIcon: Icon(Icons.inventory_2_outlined),
                     ),
@@ -400,45 +388,101 @@ class _EditIngredientScreenState extends State<EditIngredientScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      final updatedIngredient = Ingredient(
-                        id: widget.ingredient.id,
-                        name: _nameController.text,
-                        quantity: _quantity,
-                        storageType: _selectedStorageType,
-                        expirationDate: _selectedExpirationDate,
-                      );
-
-                      // FridgeProvider를 사용하여 현재 냉장고의 재료 업데이트
+                  onPressed: _updateIngredient,
+                  icon: const Icon(Icons.save),
+                  label: const Text('수정하기'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[600],
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              // 재료 삭제하기 버튼
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        title: Row(
+                          children: [
+                            Icon(Icons.delete_outline,
+                                color: Colors.red[600], size: 28),
+                            const SizedBox(width: 8),
+                            const Text('재료 삭제',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        content: const Text(
+                          '정말로 이 재료를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        actionsAlignment: MainAxisAlignment.center,
+                        actions: [
+                          SizedBox(
+                            width: 100,
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.blue[600],
+                                side: BorderSide(color: Colors.blue[600]!),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text('취소',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 100,
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red[600],
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text('삭제',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
                       final fridgeProvider =
                           Provider.of<FridgeProvider>(context, listen: false);
-                      final currentIngredients =
-                          fridgeProvider.currentFridgeIngredients;
-                      final index = currentIngredients
-                          .indexWhere((i) => i.id == widget.ingredient.id);
-
-                      if (index != -1) {
-                        // 기존 재료 제거 후 새로운 재료 추가
-                        fridgeProvider.removeIngredientFromCurrentFridge(
-                            widget.ingredient.id);
-                        fridgeProvider
-                            .addIngredientToCurrentFridge(updatedIngredient);
-                      }
-
-                      Navigator.pop(context); // 수정 후 화면 닫기
+                      fridgeProvider.removeIngredientFromCurrentFridge(
+                          widget.ingredient.id);
+                      Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('재료가 수정되었습니다!'),
+                          content: Text('재료가 삭제되었습니다!'),
                           duration: Duration(seconds: 2),
                         ),
                       );
                     }
                   },
-                  icon: const Icon(Icons.save),
-                  label: const Text('수정 완료'),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('재료 삭제하기'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
+                    backgroundColor: Colors.red[600],
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 16),

@@ -6,6 +6,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'login_screen.dart';
+import '../models/fridge.dart';
+import 'fridge_screen.dart';
 
 class FridgeInfoScreen extends StatefulWidget {
   const FridgeInfoScreen({super.key});
@@ -236,25 +239,96 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            final fridge = Provider.of<FridgeProvider>(context,
-                                    listen: false)
-                                .currentFridge;
-                            if (fridge != null) {
-                              final shareText =
-                                  'G-Fridge에서 [${fridge.name}] 냉장고를 함께 관리해요!\n\n초대 ID: ${fridge.id}';
-                              Share.share(shareText);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('냉장고 정보를 불러올 수 없습니다.'),
-                                  duration: Duration(seconds: 2),
+                          onPressed: () async {
+                            final fridgeProvider = Provider.of<FridgeProvider>(
+                                context,
+                                listen: false);
+                            final fridge = fridgeProvider.currentFridge;
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null || fridge == null) {
+                              // 로그인 유도 및 마이그레이션
+                              // 1. 로그인 유도
+                              final loginResult = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('로그인 필요'),
+                                  content: const Text(
+                                      '공유 기능을 사용하려면 로그인이 필요합니다. 로그인하시겠습니까?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(false),
+                                      child: const Text('취소'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(true),
+                                      child: const Text('로그인'),
+                                    ),
+                                  ],
                                 ),
                               );
+                              if (loginResult != true) return;
+                              // 실제 로그인 로직 (구글 등)
+                              // 로그인 후 Firestore에 새 냉장고 생성 및 데이터 마이그레이션
+                              // (여기서는 login_screen.dart의 GoogleAuthHelper 사용 가정)
+                              await GoogleAuthHelper.signInWithGoogle(context);
+                              final userAfter =
+                                  FirebaseAuth.instance.currentUser;
+                              if (userAfter == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('로그인에 실패했습니다.')),
+                                );
+                                return;
+                              }
+                              // Firestore에 새 냉장고 생성
+                              final newFridge = Fridge(
+                                name: fridge?.name ?? '내 냉장고',
+                                type: '공유용',
+                                creatorId: userAfter.uid,
+                              );
+                              await fridgeProvider.addFridge(newFridge);
+                              // 기존 로컬 냉장고 재료 복사
+                              final localIngredients =
+                                  fridgeProvider.currentFridgeIngredients;
+                              for (final ingredient in localIngredients) {
+                                await fridgeProvider
+                                    .addIngredientToCurrentFridge(ingredient);
+                              }
+                              // 안내 및 공유 코드 표시
+                              final newFridgeId =
+                                  fridgeProvider.currentFridge?.id;
+                              if (newFridgeId != null) {
+                                final shareText =
+                                    'G-Fridge에서 [${newFridge.name}] 냉장고를 함께 관리해요!\n\n초대 ID: $newFridgeId';
+                                Share.share(shareText);
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('공유 냉장고로 전환되었습니다!')),
+                              );
+                            } else {
+                              // 새로운 초대코드 생성 및 Firestore에 추가
+                              final code = await fridgeProvider
+                                  .addInviteCodeToFridge(fridge.id);
+                              if (code == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('초대코드를 생성할 수 없습니다.')),
+                                );
+                                return;
+                              }
+                              final expireDate =
+                                  DateTime.now().add(const Duration(days: 7));
+                              final expireStr =
+                                  '${expireDate.year}.${expireDate.month.toString().padLeft(2, '0')}.${expireDate.day.toString().padLeft(2, '0')}까지 유효';
+                              final shareText =
+                                  'G-Fridge에서 [${fridge.name}] 냉장고를 함께 관리해요!\n\n초대코드: $code\n($expireStr)';
+                              Share.share(shareText);
                             }
                           },
-                          icon: const Icon(Icons.share),
-                          label: const Text('공유 링크 생성'),
+                          icon: const Icon(Icons.group_add),
+                          label: const Text('냉장고 공유하기'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue[600],
                             foregroundColor: Colors.white,
@@ -271,6 +345,90 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
                   ),
                 ),
               ),
+            // 냉장고 삭제 버튼 (페이지 하단)
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('냉장고 삭제하기',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                textStyle:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
+              onPressed: () async {
+                final fridgeProvider =
+                    Provider.of<FridgeProvider>(context, listen: false);
+                final fridge = fridgeProvider.currentFridge;
+                if (fridge == null) return;
+                // 냉장고가 1개만 남아있으면 삭제 방지
+                if (fridgeProvider.fridges.length <= 1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('냉장고는 최소 한 개가 있어야 합니다')),
+                  );
+                  return;
+                }
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    title: const Text('냉장고 삭제',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            '정말로 "${fridge.name}" 냉장고를\n삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue),
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('취소'),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red),
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text('삭제'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+                if (confirm == true) {
+                  await fridgeProvider.removeFridgeFirestore(fridge.id);
+                  if (mounted) {
+                    if (fridgeProvider.fridges.isNotEmpty) {
+                      // order가 가장 작은 냉장고로 이동 (Scaffold 포함된 FridgeScreen으로 이동)
+                      final nextFridge = fridgeProvider.fridges.reduce(
+                          (a, b) => (a.order ?? 0) < (b.order ?? 0) ? a : b);
+                      fridgeProvider.setCurrentFridge(nextFridge.id);
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => const FridgeScreen(),
+                        ),
+                      );
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('냉장고가 삭제되었습니다.')),
+                    );
+                  }
+                }
+              },
+            ),
           ],
         ),
       ),

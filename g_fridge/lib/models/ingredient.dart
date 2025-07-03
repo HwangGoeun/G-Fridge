@@ -1,22 +1,49 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Ingredient {
   final String id;
-  final String name;
-  final StorageType storageType; // Add storageType
-  double quantity; // 수량 (0.5 단위)
-  final DateTime? expirationDate; // 유통기한을 nullable로 변경
+  final String ingredientName;
+  final StorageType storageType;
+  double quantity;
+  final DateTime? expirationDate;
 
   Ingredient({
     required this.id,
-    required this.name,
-    required this.storageType, // Use storageType
-    this.expirationDate, // required 제거
-    this.quantity = 1.0, // 기본값 1.0
+    required this.ingredientName,
+    required this.storageType,
+    this.expirationDate,
+    this.quantity = 1.0,
   });
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'ingredientName': ingredientName,
+      'quantity': quantity,
+      'storageType': storageType.toString().split('.').last,
+      'expirationDate':
+          expirationDate != null ? Timestamp.fromDate(expirationDate!) : null,
+    };
+  }
+
+  factory Ingredient.fromFirestore(Map<String, dynamic> firestore, String id) {
+    return Ingredient(
+      id: id,
+      ingredientName: firestore['ingredientName'],
+      quantity: (firestore['quantity'] as num).toDouble(),
+      storageType: StorageType.values.firstWhere(
+        (e) => e.toString().split('.').last == firestore['storageType'],
+        orElse: () => StorageType.refrigerated,
+      ),
+      expirationDate: firestore['expirationDate'] != null
+          ? (firestore['expirationDate'] as Timestamp).toDate()
+          : null,
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'name': name,
+      'ingredientName': ingredientName,
       'quantity': quantity,
       'storageType': storageType.toString().split('.').last,
       'expirationDate': expirationDate?.toIso8601String(),
@@ -26,7 +53,7 @@ class Ingredient {
   factory Ingredient.fromJson(Map<String, dynamic> json) {
     return Ingredient(
       id: json['id'],
-      name: json['name'],
+      ingredientName: json['ingredientName'],
       quantity: (json['quantity'] as num).toDouble(),
       storageType: StorageType.values.firstWhere(
         (e) => e.toString().split('.').last == json['storageType'],
@@ -41,14 +68,14 @@ class Ingredient {
 
   Ingredient copyWith({
     String? id,
-    String? name,
+    String? ingredientName,
     StorageType? storageType,
     double? quantity,
     DateTime? expirationDate,
   }) {
     return Ingredient(
       id: id ?? this.id,
-      name: name ?? this.name,
+      ingredientName: ingredientName ?? this.ingredientName,
       storageType: storageType ?? this.storageType,
       quantity: quantity ?? this.quantity,
       expirationDate: expirationDate ?? this.expirationDate,
@@ -57,8 +84,7 @@ class Ingredient {
 }
 
 enum StorageType {
-  // Define StorageType enum
-  refrigerated, // 냉장
-  frozen, // 냉동
-  roomTemperature, // 실온
+  refrigerated,
+  frozen,
+  roomTemperature,
 }

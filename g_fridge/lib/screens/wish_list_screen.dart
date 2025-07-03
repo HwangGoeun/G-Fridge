@@ -54,13 +54,13 @@ class _WishListScreenState extends State<WishListScreen> {
       final wish = wishProvider.wishes[idx];
       final ingredient = Ingredient(
         id: const Uuid().v4(),
-        name: wish.name,
+        ingredientName: wish.name,
         storageType: StorageType.refrigerated,
         quantity: 1.0,
         expirationDate: null,
       );
       cartProvider.addItem(ingredient);
-      wishProvider.removeWish(idx);
+      wishProvider.removeWish(wish.id);
     }
     setState(() {
       _selectedIndexes.clear();
@@ -78,13 +78,13 @@ class _WishListScreenState extends State<WishListScreen> {
       final wish = wishProvider.wishes[idx];
       final ingredient = Ingredient(
         id: const Uuid().v4(),
-        name: wish.name,
+        ingredientName: wish.name,
         storageType: StorageType.refrigerated,
         quantity: 1.0,
         expirationDate: null,
       );
       fridgeProvider.addIngredientToCurrentFridge(ingredient);
-      wishProvider.removeWish(idx);
+      wishProvider.removeWish(wish.id);
     }
     setState(() {
       _selectedIndexes.clear();
@@ -98,7 +98,8 @@ class _WishListScreenState extends State<WishListScreen> {
   void _batchDelete(WishListProvider wishProvider) {
     final selected = _selectedIndexes.toList()..sort((a, b) => b.compareTo(a));
     for (final idx in selected) {
-      wishProvider.removeWish(idx);
+      final wish = wishProvider.wishes[idx];
+      wishProvider.removeWish(wish.id);
     }
     setState(() {
       _selectedIndexes.clear();

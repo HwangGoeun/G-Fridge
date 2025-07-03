@@ -1,50 +1,101 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/ingredient.dart';
 
 class ShoppingCartProvider with ChangeNotifier {
-  final List<Ingredient> _cartItems = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late String _fridgeId;
+  List<Ingredient> _cartItems = [];
 
   List<Ingredient> get cartItems => _cartItems;
 
-  void addItem(Ingredient ingredient) {
-    // Check if the item already exists in the cart
-    int existingIndex =
-        _cartItems.indexWhere((item) => item.id == ingredient.id);
+  void setFridgeId(String fridgeId) {
+    _fridgeId = fridgeId;
+    _listenToCartItems();
+  }
 
-    if (existingIndex != -1) {
-      // If it exists, increase the quantity
-      _cartItems[existingIndex] = _cartItems[existingIndex].copyWith(
-        quantity: _cartItems[existingIndex].quantity + ingredient.quantity,
-      );
+  void _listenToCartItems() {
+    _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('shopping_cart')
+        .snapshots()
+        .listen((snapshot) {
+      _cartItems = snapshot.docs
+          .map((doc) => Ingredient.fromFirestore(doc.data(), doc.id))
+          .toList();
+      notifyListeners();
+    });
+  }
+
+  Future<void> addItem(Ingredient ingredient) async {
+    final querySnapshot = await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('shopping_cart')
+        .where('ingredientName', isEqualTo: ingredient.ingredientName)
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      final doc = querySnapshot.docs.first;
+      await doc.reference.update({
+        'quantity': FieldValue.increment(ingredient.quantity),
+      });
     } else {
-      // If it doesn't exist, add the new item
-      _cartItems.add(ingredient);
-    }
-    notifyListeners();
-  }
-
-  void removeItem(Ingredient ingredient) {
-    _cartItems.removeWhere((item) => item.id == ingredient.id);
-    notifyListeners();
-  }
-
-  void increaseQuantity(Ingredient ingredient) {
-    int index = _cartItems.indexWhere((item) => item.id == ingredient.id);
-    if (index != -1) {
-      _cartItems[index] = _cartItems[index].copyWith(
-        quantity: _cartItems[index].quantity + 0.5,
-      );
-      notifyListeners();
+      await _firestore
+          .collection('fridges')
+          .doc(_fridgeId)
+          .collection('shopping_cart')
+          .add(ingredient.toFirestore());
     }
   }
 
-  void decreaseQuantity(Ingredient ingredient) {
-    int index = _cartItems.indexWhere((item) => item.id == ingredient.id);
-    if (index != -1 && _cartItems[index].quantity > 0.5) {
-      _cartItems[index] = _cartItems[index].copyWith(
-        quantity: _cartItems[index].quantity - 0.5,
-      );
-      notifyListeners();
+  Future<void> removeItem(String ingredientId) async {
+    await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('shopping_cart')
+        .doc(ingredientId)
+        .delete();
+  }
+
+  Future<void> increaseQuantity(String ingredientId) async {
+    await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('shopping_cart')
+        .doc(ingredientId)
+        .update({'quantity': FieldValue.increment(0.5)});
+  }
+
+  Future<void> decreaseQuantity(String ingredientId) async {
+    final docRef = _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('shopping_cart')
+        .doc(ingredientId);
+
+    final doc = await docRef.get();
+    if (doc.exists && (doc.data()?['quantity'] ?? 0) > 0.5) {
+      await docRef.update({'quantity': FieldValue.increment(-0.5)});
+    } else if (doc.exists) {
+      // If quantity is 0.5 or less, remove the item
+      await docRef.delete();
     }
+  }
+
+  Future<void> clearCart() async {
+    final WriteBatch batch = _firestore.batch();
+    final querySnapshot = await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('shopping_cart')
+        .get();
+
+    for (final doc in querySnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 }

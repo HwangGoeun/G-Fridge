@@ -1,81 +1,79 @@
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ingredient.dart';
 
 class IngredientProvider extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late String _fridgeId;
   List<Ingredient> _ingredients = [];
-
-  static const _ingredientsKey = 'ingredients_list';
 
   List<Ingredient> get ingredients => _ingredients;
 
-  IngredientProvider() {
-    _loadIngredients();
+  void setFridgeId(String fridgeId) {
+    _fridgeId = fridgeId;
+    _listenToIngredients();
   }
 
-  Future<void> _loadIngredients() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? ingredientsString = prefs.getString(_ingredientsKey);
-    if (ingredientsString != null) {
-      final List<dynamic> ingredientsJson = jsonDecode(ingredientsString);
-      _ingredients = ingredientsJson
-          .map((json) => Ingredient.fromJson(json as Map<String, dynamic>))
+  void _listenToIngredients() {
+    _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('ingredients')
+        .orderBy('ingredientName')
+        .snapshots()
+        .listen((snapshot) {
+      _ingredients = snapshot.docs
+          .map((doc) => Ingredient.fromFirestore(doc.data(), doc.id))
           .toList();
       notifyListeners();
-    }
+    });
   }
 
-  Future<void> _saveIngredients() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String ingredientsString =
-        jsonEncode(_ingredients.map((i) => i.toJson()).toList());
-    await prefs.setString(_ingredientsKey, ingredientsString);
+  Future<void> addIngredient(Ingredient ingredient) async {
+    await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('ingredients')
+        .add(ingredient.toFirestore());
   }
 
-  void addIngredient(Ingredient ingredient) {
-    _ingredients.add(ingredient);
-    _saveIngredients();
-    notifyListeners();
+  Future<void> updateIngredient(Ingredient ingredient) async {
+    await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('ingredients')
+        .doc(ingredient.id)
+        .update(ingredient.toFirestore());
   }
 
-  void increaseQuantity(String id) {
-    final index = _ingredients.indexWhere((i) => i.id == id);
-    if (index >= 0 && index < _ingredients.length) {
-      _ingredients[index].quantity += 0.5;
-      _saveIngredients();
-      notifyListeners();
-    }
+  Future<void> removeIngredient(String ingredientId) async {
+    await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('ingredients')
+        .doc(ingredientId)
+        .delete();
   }
 
-  void decreaseQuantity(String id) {
-    final index = _ingredients.indexWhere((i) => i.id == id);
-    if (index >= 0 && index < _ingredients.length) {
-      if (_ingredients[index].quantity > 0.5) {
-        _ingredients[index].quantity -= 0.5;
-        _saveIngredients();
-        notifyListeners();
-      } else {
-        _ingredients[index].quantity == 0.5;
-      }
-    }
+  Future<void> increaseQuantity(String ingredientId) async {
+    final docRef = _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('ingredients')
+        .doc(ingredientId);
+    await docRef.update({'quantity': FieldValue.increment(0.5)});
   }
 
-  void removeIngredient(String id) {
-    final index = _ingredients.indexWhere((i) => i.id == id);
-    if (index >= 0 && index < _ingredients.length) {
-      _ingredients.removeAt(index);
-      _saveIngredients();
-      notifyListeners();
-    }
-  }
+  Future<void> decreaseQuantity(String ingredientId) async {
+    final docRef = _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('ingredients')
+        .doc(ingredientId);
 
-  void updateIngredient(String id, Ingredient ingredient) {
-    final index = _ingredients.indexWhere((i) => i.id == id);
-    if (index >= 0 && index < _ingredients.length) {
-      _ingredients[index] = ingredient;
-      _saveIngredients();
-      notifyListeners();
+    final doc = await docRef.get();
+    if (doc.exists && (doc.data()?['quantity'] ?? 0) > 0.5) {
+      await docRef.update({'quantity': FieldValue.increment(-0.5)});
     }
   }
 }
