@@ -51,8 +51,8 @@ class _EditIngredientScreenState extends State<EditIngredientScreen> {
         expirationDate: _selectedExpirationDate,
       );
 
-      Provider.of<IngredientProvider>(context, listen: false)
-          .updateIngredient(updatedIngredient);
+      Provider.of<FridgeProvider>(context, listen: false)
+          .addIngredientToCurrentFridge(updatedIngredient);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

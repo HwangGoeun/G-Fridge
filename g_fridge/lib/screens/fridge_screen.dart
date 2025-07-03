@@ -483,7 +483,13 @@ class _FridgeScreenState extends State<FridgeScreen>
       );
     }
     final currentFridge = fridgeProvider.currentFridge;
-    final currentIngredients = fridgeProvider.currentFridgeIngredients;
+    // 냉장고가 바뀔 때마다 실시간 재료 구독
+    if (currentFridge != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ingredientProvider.setFridgeId(currentFridge.id);
+      });
+    }
+    final currentIngredients = ingredientProvider.ingredients;
 
     // 유통기한 정렬 함수
     int compareIngredients(Ingredient a, Ingredient b) {

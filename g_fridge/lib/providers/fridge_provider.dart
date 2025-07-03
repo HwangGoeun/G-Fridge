@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
+import 'dart:async';
 
 class FridgeProvider with ChangeNotifier {
   List<Fridge> _fridges = [];
@@ -15,6 +16,8 @@ class FridgeProvider with ChangeNotifier {
   String? _myNickname;
   bool _isUserReady = false;
   bool get isUserReady => _isUserReady;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+      _fridgeSubscription;
 
   // Getters
   List<Fridge> get fridges {
@@ -40,6 +43,42 @@ class FridgeProvider with ChangeNotifier {
     return _fridgeIngredients[fridgeId] ?? [];
   }
 
+  // 실시간 냉장고 목록 구독
+  void listenToFridges(String uid) {
+    _fridgeSubscription?.cancel();
+    _fridgeSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((userDoc) async {
+      final fridgeIds =
+          (userDoc.data()?['fridgeIds'] as List?)?.cast<String>() ?? [];
+      if (fridgeIds.isEmpty) {
+        _fridges = [];
+        notifyListeners();
+        return;
+      }
+      final fridgesSnapshot = await FirebaseFirestore.instance
+          .collection('fridges')
+          .where(FieldPath.documentId, whereIn: fridgeIds)
+          .get();
+      _fridges = fridgesSnapshot.docs
+          .map((doc) => Fridge.fromJson(doc.data()))
+          .toList();
+      _fridges.sort((a, b) => (a.order ?? 0).compareTo(b.order ?? 0));
+      if (_fridges.isNotEmpty) {
+        _currentFridgeId = _fridges.first.id;
+      }
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _fridgeSubscription?.cancel();
+    super.dispose();
+  }
+
   // 초기화
   Future<void> initialize() async {
     print('[FridgeProvider] initialize() called');
@@ -49,11 +88,10 @@ class FridgeProvider with ChangeNotifier {
     try {
       if (user != null) {
         print('[FridgeProvider] initialize: user is logged in');
+        listenToFridges(user.uid); // 실시간 구독 시작
         await initializeFromFirestore();
-        // initializeFromFirestore가 끝난 후에만 _fridges.isEmpty 체크
         if (_fridges.isEmpty) {
           await createDefaultFridge();
-          // createDefaultFridge 이후에 initializeFromFirestore를 다시 호출하지 않음
         }
       }
       await loadFridgeIngredients();

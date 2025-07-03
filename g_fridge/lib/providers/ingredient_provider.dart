@@ -1,27 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/ingredient.dart';
+import 'dart:async';
 
 class IngredientProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late String _fridgeId;
+  String? _fridgeId;
   List<Ingredient> _ingredients = [];
+  StreamSubscription? _ingredientSubscription;
 
   List<Ingredient> get ingredients => _ingredients;
 
   void setFridgeId(String fridgeId) {
+    if (_fridgeId == fridgeId && _ingredientSubscription != null) return;
     _fridgeId = fridgeId;
-    _listenToIngredients();
-  }
-
-  void _listenToIngredients() {
-    _firestore
+    _ingredientSubscription?.cancel();
+    print('[IngredientProvider] Start listening to fridge: $fridgeId');
+    _ingredientSubscription = _firestore
         .collection('fridges')
         .doc(_fridgeId)
         .collection('ingredients')
         .orderBy('ingredientName')
         .snapshots()
         .listen((snapshot) {
+      print(
+          '[IngredientProvider] ingredients updated: ${snapshot.docs.length}');
       _ingredients = snapshot.docs
           .map((doc) => Ingredient.fromFirestore(doc.data(), doc.id))
           .toList();
@@ -29,51 +32,12 @@ class IngredientProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> addIngredient(Ingredient ingredient) async {
-    await _firestore
-        .collection('fridges')
-        .doc(_fridgeId)
-        .collection('ingredients')
-        .add(ingredient.toFirestore());
+  @override
+  void dispose() {
+    _ingredientSubscription?.cancel();
+    super.dispose();
   }
 
-  Future<void> updateIngredient(Ingredient ingredient) async {
-    await _firestore
-        .collection('fridges')
-        .doc(_fridgeId)
-        .collection('ingredients')
-        .doc(ingredient.id)
-        .update(ingredient.toFirestore());
-  }
-
-  Future<void> removeIngredient(String ingredientId) async {
-    await _firestore
-        .collection('fridges')
-        .doc(_fridgeId)
-        .collection('ingredients')
-        .doc(ingredientId)
-        .delete();
-  }
-
-  Future<void> increaseQuantity(String ingredientId) async {
-    final docRef = _firestore
-        .collection('fridges')
-        .doc(_fridgeId)
-        .collection('ingredients')
-        .doc(ingredientId);
-    await docRef.update({'quantity': FieldValue.increment(0.5)});
-  }
-
-  Future<void> decreaseQuantity(String ingredientId) async {
-    final docRef = _firestore
-        .collection('fridges')
-        .doc(_fridgeId)
-        .collection('ingredients')
-        .doc(ingredientId);
-
-    final doc = await docRef.get();
-    if (doc.exists && (doc.data()?['quantity'] ?? 0) > 0.5) {
-      await docRef.update({'quantity': FieldValue.increment(-0.5)});
-    }
-  }
+  // 쓰기 관련 메서드(추가/수정/삭제)는 FridgeProvider를 통해서만 처리합니다.
+  // IngredientProvider는 읽기/구독만 담당합니다.
 }
