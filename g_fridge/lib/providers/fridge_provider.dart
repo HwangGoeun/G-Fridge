@@ -286,7 +286,7 @@ class FridgeProvider with ChangeNotifier {
     }
   }
 
-  // 현재 냉장고의 재료 수량 증가
+  // 현장고의 재료 수량 증가
   void increaseQuantityInCurrentFridge(String ingredientId) {
     if (_currentFridgeId.isNotEmpty) {
       final ingredients = _fridgeIngredients[_currentFridgeId];
@@ -583,80 +583,72 @@ class FridgeProvider with ChangeNotifier {
     return code;
   }
 
-  // 초대코드로 냉장고 참여 (inviteCodes 컬렉션 기반)
-  Future<bool> joinFridgeByCode(String inviteCode) async {
+  /// 반환값: {'result': 'success'|'expired'|'used'|'invalid'|'not_found'|'error', 'message': ...}
+  Future<Map<String, String>> joinFridgeByCode(String inviteCode) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
+    if (user == null) return {'result': 'error', 'message': '로그인이 필요합니다.'};
     try {
       final code = inviteCode.trim();
-      // print('[joinFridgeByCode] 입력 코드: "$code"');
-      // inviteCodes 컬렉션에서 code로 쿼리
       final codeDoc = await FirebaseFirestore.instance
           .collection('inviteCodes')
           .doc(code)
           .get();
-      // print('[joinFridgeByCode] codeDoc.exists: \\${codeDoc.exists}');
       if (!codeDoc.exists) {
-        // print('[joinFridgeByCode] 코드 문서 없음');
-        return false;
+        return {'result': 'not_found', 'message': '초대코드를 찾을 수 없습니다.'};
       }
       final data = codeDoc.data()!;
       final fridgeId = data['fridgeId'] as String?;
       final createdAt = data['createdAt'] as int?;
       final isValid = data['valid'] == true;
-      // print(
-      //     '[joinFridgeByCode] fridgeId: \\${fridgeId?.toString() ?? 'null'}, createdAt: \\${createdAt?.toString() ?? 'null'}, valid: \\${isValid.toString()}');
-      if (fridgeId == null || createdAt == null || !isValid) {
-        // print('[joinFridgeByCode] fridgeId 또는 createdAt 없음, 또는 유효하지 않은 코드');
-        // 코드가 유효하지 않으면 삭제
+      final reason = data['reason']?.toString() ?? '';
+      if (fridgeId == null || createdAt == null) {
         await codeDoc.reference.update({'valid': false, 'reason': 'invalid'});
-        await codeDoc.reference.delete();
-        return false;
+        return {'result': 'invalid', 'message': '유효하지 않은 초대코드입니다.'};
       }
       const expire = Duration(days: 7);
       final now = DateTime.now().millisecondsSinceEpoch;
-      // print('[joinFridgeByCode] now: $now, expire: \\${expire.inMilliseconds}');
       if (now - createdAt > expire.inMilliseconds) {
-        // print('[joinFridgeByCode] 코드 만료됨');
-        // 만료된 경우 valid를 false, reason을 'expired'로 업데이트 후 삭제
         await codeDoc.reference.update({'valid': false, 'reason': 'expired'});
-        await codeDoc.reference.delete();
-        return false;
+        return {'result': 'expired', 'message': '초대코드가 만료되었습니다.'};
       }
-      // 냉장고 문서의 sharedWith에 추가
+      if (!isValid) {
+        // 이미 사용됨, 만료됨, 기타
+        if (reason == 'expired') {
+          return {'result': 'expired', 'message': '초대코드가 만료되었습니다.'};
+        } else if (reason == 'used') {
+          return {'result': 'used', 'message': '이미 사용된 초대코드입니다.'};
+        } else {
+          return {'result': 'invalid', 'message': '유효하지 않은 초대코드입니다.'};
+        }
+      }
+      // 정상 참여 로직
       final fridgeDoc = await FirebaseFirestore.instance
           .collection('fridges')
           .doc(fridgeId)
           .get();
       if (!fridgeDoc.exists) {
-        // print('[joinFridgeByCode] 냉장고 문서 없음');
-        return false;
+        return {'result': 'invalid', 'message': '냉장고 정보를 찾을 수 없습니다.'};
       }
       final fridgeData = fridgeDoc.data()!;
       final sharedWith = List<String>.from(fridgeData['sharedWith'] ?? []);
       if (!sharedWith.contains(user.uid)) {
-        // print('[joinFridgeByCode] sharedWith에 추가');
         await fridgeDoc.reference.update({
           'sharedWith': FieldValue.arrayUnion([user.uid])
         });
-        // type을 '공유용'으로 강제 update
         await fridgeDoc.reference.update({'type': '공유용'});
-        // users/{uid}/fridgeIds에 fridgeId 추가
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'fridgeIds': FieldValue.arrayUnion([fridgeId])
         }, SetOptions(merge: true));
       }
-      // 초대코드 문서 삭제(1회용) 및 valid false, reason 'used'로 업데이트
-      // print('[joinFridgeByCode] 코드 문서 삭제');
+      // 초대코드 문서 삭제하지 않고 상태만 업데이트
       await codeDoc.reference.update({'valid': false, 'reason': 'used'});
-      await codeDoc.reference.delete();
       // 내 냉장고 목록 동기화
       await initializeFromFirestore();
-      // print('[joinFridgeByCode] 참여 성공');
-      return true;
-    } catch (e) {
-      // print('[joinFridgeByCode] error: $e');
-      return false;
+      return {'result': 'success', 'message': '공유 냉장고에 참여했습니다!'};
+    } catch (e, stack) {
+      print('[joinFridgeByCode] error: $e');
+      print(stack);
+      return {'result': 'error', 'message': '참여에 실패했습니다: $e'};
     }
   }
 

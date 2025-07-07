@@ -64,17 +64,16 @@ class _AddFridgeScreenState extends State<AddFridgeScreen> {
     setState(() => _isSaving = true);
     try {
       final provider = Provider.of<FridgeProvider>(context, listen: false);
-      final joined = await provider.joinFridgeByCode(inviteCode);
-      if (joined) {
+      final result = await provider.joinFridgeByCode(inviteCode);
+      final resultType = result['result'];
+      final message = result['message'] ?? '알 수 없는 오류입니다.';
+      if (resultType == 'success') {
+        await provider.initializeFromFirestore();
         if (context.mounted) Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('공유 냉장고에 참여했습니다!')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('유효하지 않은 초대코드입니다.')),
-        );
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('참여에 실패했습니다: $e')),

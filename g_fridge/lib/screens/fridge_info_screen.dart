@@ -69,27 +69,8 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
     });
   }
 
-  Future<void> _kickMember(String uid) async {
-    final fridgeProvider = Provider.of<FridgeProvider>(context, listen: false);
-    final fridge = fridgeProvider.currentFridge;
-    if (fridge == null) return;
-    if (uid == fridge.creatorId) return; // 본인은 강퇴 불가
-    // Firestore에서 sharedWith에서 해당 uid 제거
-    await FirebaseFirestore.instance
-        .collection('fridges')
-        .doc(fridge.id)
-        .update({
-      'sharedWith': FieldValue.arrayRemove([uid])
-    });
-    // UI 갱신
-    await _fetchMemberInfos();
-    await fridgeProvider.initializeFromFirestore();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('참여자를 강퇴했습니다.')),
-      );
-    }
-  }
+  // 1. _kickMember 함수 자체와 관련 호출/버튼을 모두 삭제
+  // 2. 멤버 리스트에서 강퇴 버튼(예: ElevatedButton(child: Text('강퇴'), ...), _kickMember 호출 등) 제거
 
   @override
   void dispose() {
@@ -468,46 +449,8 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
                                         ),
                                       ),
                                       // 강퇴 버튼: creator만, 본인은 불가
-                                      if (isCreator && !isSelf)
-                                        IconButton(
-                                          icon: const Icon(
-                                              Icons.remove_circle_outline,
-                                              color: Colors.red,
-                                              size: 20),
-                                          tooltip: '강퇴',
-                                          onPressed: () async {
-                                            final confirm =
-                                                await showDialog<bool>(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                title: const Text('참여자 강퇴'),
-                                                content: Text(
-                                                    '정말로 ${info['display']}님을 강퇴하시겠습니까?'),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.of(context)
-                                                            .pop(false),
-                                                    child: const Text('취소'),
-                                                  ),
-                                                  ElevatedButton(
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                            backgroundColor:
-                                                                Colors.red),
-                                                    onPressed: () =>
-                                                        Navigator.of(context)
-                                                            .pop(true),
-                                                    child: const Text('강퇴'),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                            if (confirm == true) {
-                                              await _kickMember(info['uid']);
-                                            }
-                                          },
-                                        ),
+                                      // 1. _kickMember 함수 자체와 관련 호출/버튼을 모두 삭제
+                                      // 2. 멤버 리스트에서 강퇴 버튼(예: ElevatedButton(child: Text('강퇴'), ...), _kickMember 호출 등) 제거
                                     ],
                                   );
                                 },
@@ -516,7 +459,7 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
                 ),
               ),
             ),
-            // 냉장고 삭제 버튼 (페이지 하단)
+            // 냉장고 삭제/나가기 버튼 (페이지 하단)
             const SizedBox(height: 24),
             if (user != null && user.uid == creatorId)
               ElevatedButton.icon(
@@ -537,6 +480,14 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
                       Provider.of<FridgeProvider>(context, listen: false);
                   final fridge = fridgeProvider.currentFridge;
                   if (fridge == null) return;
+                  // 멤버가 1명 이상 남아 있으면 삭제 불가
+                  if (fridge.sharedWith.isNotEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('공유 멤버가 남아 있으면 냉장고를 삭제할 수 없습니다.')),
+                    );
+                    return;
+                  }
                   // 냉장고가 1개만 남아있으면 삭제 방지
                   if (fridgeProvider.fridges.length <= 1) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -597,6 +548,64 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
                       }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('냉장고가 삭제되었습니다.')),
+                      );
+                    }
+                  }
+                },
+              )
+            else if (user != null &&
+                fridge != null &&
+                fridge.sharedWith.contains(user.uid))
+              ElevatedButton.icon(
+                icon: const Icon(Icons.exit_to_app),
+                label: const Text('냉장고 나가기',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(12))),
+                ),
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      title: const Text('냉장고 나가기',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      content: Text('정말로 "${fridge.name}" 냉장고에서 나가시겠습니까?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('취소'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('나가기',
+                              style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    await FirebaseFirestore.instance
+                        .collection('fridges')
+                        .doc(fridge.id)
+                        .update({
+                      'sharedWith': FieldValue.arrayRemove([user.uid])
+                    });
+                    // UI 갱신
+                    await fridgeProvider.initializeFromFirestore();
+                    if (mounted) {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const FridgeScreen()),
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('냉장고에서 나갔습니다.')),
                       );
                     }
                   }

@@ -65,11 +65,11 @@ class _LoginScreenState extends State<LoginScreen> {
               'createdAt': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
             print('[LoginScreen] 신규 유저 닉네임 생성');
-            await fridgeProvider.initializeFromFirestore();
+            // await fridgeProvider.initializeFromFirestore(); // 중복 호출 제거
           }
           print('[LoginScreen] FridgeProvider 초기화 시작');
           await fridgeProvider.initialize();
-          await fridgeProvider.initializeFromFirestore();
+          // await fridgeProvider.initializeFromFirestore(); // 중복 호출 제거
           print('[LoginScreen] FridgeProvider 초기화 완료');
           await fridgeProvider.loadMyNickname();
         }
@@ -133,14 +133,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black87,
+                        shadowColor: Colors.transparent,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                           side: const BorderSide(color: Colors.grey),
                         ),
-                        elevation: 2,
-                      ).copyWith(
-                        backgroundColor:
-                            MaterialStateProperty.all<Color>(Colors.white),
+                        elevation: 0,
                       ),
                       onPressed: _signInWithGoogle,
                       child: Row(
@@ -157,6 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w500,
+                              color: Colors.black87,
                             ),
                           ),
                         ],
