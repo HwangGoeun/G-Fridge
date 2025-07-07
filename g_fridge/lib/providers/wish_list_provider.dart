@@ -29,6 +29,9 @@ class WishListProvider extends ChangeNotifier {
   }
 
   Future<void> addWish(Wish wish) async {
+    if (_fridgeId.isEmpty) {
+      throw Exception('fridgeId가 설정되지 않았습니다. setFridgeId를 먼저 호출하세요.');
+    }
     await _firestore
         .collection('fridges')
         .doc(_fridgeId)
@@ -37,6 +40,9 @@ class WishListProvider extends ChangeNotifier {
   }
 
   Future<void> removeWish(String wishId) async {
+    if (_fridgeId.isEmpty) {
+      throw Exception('fridgeId가 설정되지 않았습니다. setFridgeId를 먼저 호출하세요.');
+    }
     await _firestore
         .collection('fridges')
         .doc(_fridgeId)

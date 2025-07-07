@@ -17,6 +17,19 @@ class WishListScreen extends StatefulWidget {
 class _WishListScreenState extends State<WishListScreen> {
   bool _isSelectionMode = false;
   Set<int> _selectedIndexes = {};
+  String? _lastFridgeId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final fridgeProvider = Provider.of<FridgeProvider>(context);
+    final wishProvider = Provider.of<WishListProvider>(context, listen: false);
+    final fridgeId = fridgeProvider.currentFridgeId;
+    if (fridgeId.isNotEmpty && fridgeId != _lastFridgeId) {
+      wishProvider.setFridgeId(fridgeId);
+      _lastFridgeId = fridgeId;
+    }
+  }
 
   void _toggleSelectionMode() {
     setState(() {
