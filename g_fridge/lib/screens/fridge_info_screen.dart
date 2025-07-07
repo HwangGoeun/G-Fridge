@@ -58,7 +58,12 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
     final creatorId = fridge?.creatorId ?? '알 수 없음';
     final fridgeName = fridge?.name ?? '이름 없음';
     final fridgeId = fridge?.id ?? '';
-    final fridgeType = fridge?.type ?? '타입 없음';
+    String displayType = fridge?.type ?? '';
+    if (fridge != null &&
+        fridge.type == '개인용' &&
+        fridge.sharedWith.isNotEmpty) {
+      displayType = '공유용';
+    }
 
     return SingleChildScrollView(
       child: Padding(
@@ -190,8 +195,9 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
                           color: Colors.black87),
                     ),
                     const SizedBox(width: 16),
-                    const Text('개인용',
-                        style: TextStyle(fontSize: 16, color: Colors.black87)),
+                    Text(displayType,
+                        style: const TextStyle(
+                            fontSize: 16, color: Colors.black87)),
                   ],
                 ),
               ),
@@ -412,9 +418,8 @@ class _FridgeInfoScreenState extends State<FridgeInfoScreen> {
                   await fridgeProvider.removeFridgeFirestore(fridge.id);
                   if (mounted) {
                     if (fridgeProvider.fridges.isNotEmpty) {
-                      // order가 가장 작은 냉장고로 이동 (Scaffold 포함된 FridgeScreen으로 이동)
-                      final nextFridge = fridgeProvider.fridges.reduce(
-                          (a, b) => (a.order ?? 0) < (b.order ?? 0) ? a : b);
+                      // order가 가장 작은 냉장고로 이동 → 리스트 첫 번째 냉장고로 이동
+                      final nextFridge = fridgeProvider.fridges.first;
                       fridgeProvider.setCurrentFridge(nextFridge.id);
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(

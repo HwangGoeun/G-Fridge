@@ -19,6 +19,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'my_page_screen.dart';
 import 'add_fridge_screen.dart';
+import 'package:reorderables/reorderables.dart';
 
 // GoogleAuthHelper는 login_screen.dart에서 import됨
 
@@ -191,6 +192,8 @@ class _FridgeScreenState extends State<FridgeScreen>
   bool _cartSelectionMode = false;
   Set<String> _fridgeSelectedIds = {};
   final Set<String> _cartSelectedIds = {};
+  // 냉장고 순서 변경 모드
+  bool _isReorderMode = false;
 
   @override
   void initState() {
@@ -211,10 +214,15 @@ class _FridgeScreenState extends State<FridgeScreen>
     });
   }
 
-  void _onBottomNavTapped(int index) {
+  void _onBottomNavTapped(int index) async {
     setState(() {
       _selectedTabIndex = index;
     });
+    if (index == 0 || index == 2) {
+      // 냉장고 탭 또는 냉장고 정보 탭을 누를 때마다 동기화
+      await Provider.of<FridgeProvider>(context, listen: false)
+          .initializeFromFirestore();
+    }
   }
 
   void _toggleFridgeSelectionMode(List<Ingredient> ingredients) {
@@ -342,8 +350,10 @@ class _FridgeScreenState extends State<FridgeScreen>
 
   // Helper method to build fridge item in drawer
   Widget _buildFridgeItem(BuildContext context, String fridgeId, String name,
-      String subtitle, String detail, IconData icon, Color color) {
+      String subtitle, String detail, IconData icon, Color color,
+      {Key? key}) {
     return ListTile(
+      key: key,
       leading: Container(
         width: 40,
         height: 40,
@@ -477,19 +487,25 @@ class _FridgeScreenState extends State<FridgeScreen>
   Widget build(BuildContext context) {
     final ingredientProvider = Provider.of<IngredientProvider>(context);
     final fridgeProvider = Provider.of<FridgeProvider>(context);
+
+    // 데이터 준비 전에는 로딩 표시
     if (!fridgeProvider.isUserReady) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
     final currentFridge = fridgeProvider.currentFridge;
-    // 냉장고가 바뀔 때마다 실시간 재료 구독
+    // 냉장고가 바뀔 때마다 실시간 재료 및 장바구니 구독
     if (currentFridge != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ingredientProvider.setFridgeId(currentFridge.id);
+        Provider.of<ShoppingCartProvider>(context, listen: false)
+            .setFridgeId(currentFridge.id);
       });
     }
     final currentIngredients = ingredientProvider.ingredients;
+    print(
+        '[FridgeScreen] ingredientProvider.ingredients.length = ${currentIngredients.length}');
 
     // 유통기한 정렬 함수
     int compareIngredients(Ingredient a, Ingredient b) {
@@ -520,6 +536,13 @@ class _FridgeScreenState extends State<FridgeScreen>
         .toList()
       ..sort(compareIngredients);
 
+    print(
+        '[FridgeScreen] refrigeratedIngredients.length = ${refrigeratedIngredients.length}');
+    print(
+        '[FridgeScreen] frozenIngredients.length = ${frozenIngredients.length}');
+    print(
+        '[FridgeScreen] roomTemperatureIngredients.length = ${roomTemperatureIngredients.length}');
+
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -528,7 +551,8 @@ class _FridgeScreenState extends State<FridgeScreen>
       drawer: Drawer(
         child: Container(
           color: Colors.white,
-          child: Column(
+          child: ListView(
+            padding: EdgeInsets.zero,
             children: [
               // Drawer 헤더
               Container(
@@ -671,123 +695,137 @@ class _FridgeScreenState extends State<FridgeScreen>
                   ],
                 ),
               ),
-              // 냉장고 목록
-              Expanded(
-                child: fridgeProvider.isUserReady
-                    ? ReorderableListView(
-                        padding: EdgeInsets.zero,
-                        onReorder: (oldIndex, newIndex) async {
-                          // ReorderableListView의 newIndex는 뒤로 이동 시 +1이므로 보정 필요
-                          if (newIndex > oldIndex) newIndex -= 1;
-                          await Provider.of<FridgeProvider>(context,
-                                  listen: false)
-                              .moveFridgeOrder(oldIndex, newIndex);
-                        },
-                        children: [
-                          // 냉장고 목록 헤더
-                          Container(
-                            key: const ValueKey('fridge-header'),
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.list,
-                                  color: Colors.grey[600],
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '나의 냉장고',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // 냉장고 아이템들
-                          ...fridgeProvider.fridges
-                              .asMap()
-                              .entries
-                              .map((entry) {
-                            final index = entry.key;
-                            final fridge = entry.value;
-                            final ingredients = fridgeProvider
-                                .getIngredientsForFridge(fridge.id);
-                            String subtitle = fridge.type;
-                            return Container(
-                              key: ValueKey('fridge-${fridge.id}'),
-                              child: _buildFridgeItem(
-                                context,
-                                fridge.id,
-                                fridge.name,
-                                subtitle,
-                                '재료 ${ingredients.length}개',
-                                _getFridgeIcon(fridge.type),
-                                _getFridgeColor(fridge.type),
-                              ),
-                            );
-                          }).toList(),
-                          const Divider(
-                              height: 32, key: ValueKey('fridge-divider')),
-                          // 새 냉장고 추가 버튼
-                          ListTile(
-                            key: const ValueKey('fridge-add'),
-                            leading: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.add,
-                                color: Colors.grey[600],
-                                size: 20,
-                              ),
-                            ),
-                            title: const Text(
-                              '새 냉장고 추가',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            onTap: () {
-                              Navigator.pop(context); // 드로어 닫기
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const AddFridgeScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      )
-                    : const Center(child: CircularProgressIndicator()),
+              // 나의 냉장고 헤더 (버튼)
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isReorderMode = !_isReorderMode;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.swap_vert,
+                        color: _isReorderMode ? Colors.blue : Colors.grey[600],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '냉장고 순서 변경하기',
+                        style: TextStyle(
+                          color:
+                              _isReorderMode ? Colors.blue : Colors.grey[600],
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        _isReorderMode ? Icons.check : Icons.edit,
+                        color: _isReorderMode ? Colors.blue : Colors.grey[400],
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              // 하단 정보
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+              // 냉장고 리스트 (드래그/정렬 없음)
+              ...fridgeProvider.fridges.asMap().entries.map((entry) {
+                final index = entry.key;
+                final fridge = entry.value;
+                final ingredients =
+                    fridgeProvider.getIngredientsForFridge(fridge.id);
+                String displayType = fridge.type;
+                if (fridge.sharedWith.isNotEmpty) {
+                  displayType = '공유용';
+                }
+                String subtitle = displayType;
+                return Row(
+                  key: ValueKey('fridge-${fridge.id}'),
                   children: [
-                    // const Divider(),
-                    const SizedBox(height: 8),
-                    Text(
-                      'G Fridge v1.0',
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 12,
+                    Expanded(
+                      child: _buildFridgeItem(
+                        context,
+                        fridge.id,
+                        fridge.name,
+                        subtitle,
+                        '재료 ${ingredients.length}개',
+                        _getFridgeIcon(displayType),
+                        _getFridgeColor(displayType),
+                        key: ValueKey('fridge-${fridge.id}'),
                       ),
                     ),
+                    if (_isReorderMode) ...[
+                      // 위로 이동 버튼
+                      IconButton(
+                        icon: const Icon(Icons.arrow_upward, size: 20),
+                        tooltip: '위로 이동',
+                        onPressed: index > 0
+                            ? () async {
+                                await Provider.of<FridgeProvider>(context,
+                                        listen: false)
+                                    .moveFridgeOrder(index, index - 1);
+                              }
+                            : null,
+                      ),
+                      // 아래로 이동 버튼
+                      IconButton(
+                        icon: const Icon(Icons.arrow_downward, size: 20),
+                        tooltip: '아래로 이동',
+                        onPressed: index < fridgeProvider.fridges.length - 1
+                            ? () async {
+                                await Provider.of<FridgeProvider>(context,
+                                        listen: false)
+                                    .moveFridgeOrder(index, index + 1);
+                              }
+                            : null,
+                      ),
+                    ],
                   ],
+                );
+              }).toList(),
+              // Divider (드래그 불가)
+              const Divider(key: ValueKey('fridge-divider'), height: 32),
+              // 새 냉장고 추가 버튼 (드래그 불가)
+              ListTile(
+                key: const ValueKey('fridge-add'),
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.add,
+                    color: Colors.grey[600],
+                    size: 20,
+                  ),
                 ),
+                title: const Text(
+                  '새 냉장고 추가',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context); // 드로어 닫기
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AddFridgeScreen(),
+                    ),
+                  );
+                },
               ),
             ],
           ),
         ),
       ),
+      onDrawerChanged: (isOpened) async {
+        // 실시간 구독이 이미 동작하므로, 별도 동기화 호출을 제거
+      },
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,

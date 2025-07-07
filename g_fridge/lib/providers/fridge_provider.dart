@@ -62,12 +62,23 @@ class FridgeProvider with ChangeNotifier {
           .collection('fridges')
           .where(FieldPath.documentId, whereIn: fridgeIds)
           .get();
-      _fridges = fridgesSnapshot.docs
-          .map((doc) => Fridge.fromJson(doc.data()))
+      // fridgeIds 순서대로 정렬
+      final fridgeMap = {
+        for (var doc in fridgesSnapshot.docs)
+          doc.id: Fridge.fromJson(doc.data())
+      };
+      _fridges = fridgeIds
+          .where((id) => fridgeMap.containsKey(id))
+          .map((id) => fridgeMap[id]!)
           .toList();
-      _fridges.sort((a, b) => (a.order ?? 0).compareTo(b.order ?? 0));
       if (_fridges.isNotEmpty) {
-        _currentFridgeId = _fridges.first.id;
+        // 기존에 선택한 냉장고가 리스트에 있으면 그대로 유지, 없을 때만 첫 번째로 변경
+        if (!_fridges.any((f) => f.id == _currentFridgeId)) {
+          _currentFridgeId = _fridges.first.id;
+        }
+      } else {
+        // 냉장고가 하나도 없으면 currentFridgeId를 빈 문자열로
+        _currentFridgeId = '';
       }
       notifyListeners();
     });
@@ -162,7 +173,6 @@ class FridgeProvider with ChangeNotifier {
         inviteCodes: [
           {'code': code, 'createdAt': now}
         ],
-        order: _fridges.length,
         sharedWith: [],
       );
       _fridges.add(fridgeWithCreator);
@@ -390,6 +400,8 @@ class FridgeProvider with ChangeNotifier {
           .collection('users')
           .doc(user.uid)
           .get();
+      print(
+          '[FridgeProvider] loadMyNickname: userDoc id=${doc.id}, data=${doc.data()}');
       final nickname = doc.data()?['nickname'];
       if (nickname == null || (nickname is String && nickname.isEmpty)) {
         final defaultNickname = generateDefaultNickname();
@@ -403,8 +415,9 @@ class FridgeProvider with ChangeNotifier {
       } else {
         _myNickname = null;
       }
-    } catch (e) {
+    } catch (e, stack) {
       print('[FridgeProvider] loadMyNickname error: $e');
+      print(stack);
     } finally {
       _isUserReady = true;
       notifyListeners();
@@ -435,14 +448,34 @@ class FridgeProvider with ChangeNotifier {
   // Firestore에서 재료 목록 불러오기
   Future<void> fetchIngredientsFromFirestore(
       String uid, String fridgeId) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('fridges')
-        .doc(fridgeId)
-        .collection('ingredients')
-        .get();
-    _fridgeIngredients[fridgeId] =
-        snapshot.docs.map((doc) => Ingredient.fromJson(doc.data())).toList();
-    notifyListeners();
+    print(
+        '[FridgeProvider] fetchIngredientsFromFirestore() called for fridgeId=$fridgeId');
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('fridges')
+          .doc(fridgeId)
+          .collection('ingredients')
+          .get();
+      final List<Ingredient> loadedIngredients = [];
+      for (final doc in snapshot.docs) {
+        print(
+            '[FridgeProvider] Try parsing ingredient doc: id=${doc.id}, data=${doc.data()}');
+        try {
+          final ingredient = Ingredient.fromFirestore(doc.data(), doc.id);
+          loadedIngredients.add(ingredient);
+          print(
+              '[FridgeProvider] Successfully parsed ingredient: id=${doc.id}');
+        } catch (e, stack) {
+          print(
+              '[FridgeProvider] ERROR parsing ingredient: id=${doc.id}, error=$e');
+          print(stack);
+        }
+      }
+      _fridgeIngredients[fridgeId] = loadedIngredients;
+      notifyListeners();
+    } catch (e) {
+      print('[FridgeProvider] fetchIngredientsFromFirestore error: $e');
+    }
   }
 
   // Firestore에 재료 저장
@@ -456,7 +489,7 @@ class FridgeProvider with ChangeNotifier {
         .doc(fridgeId)
         .collection('ingredients')
         .doc(ingredient.id)
-        .set(ingredient.toJson());
+        .set(ingredient.toFirestore());
   }
 
   // Firestore에서 재료 삭제
@@ -489,14 +522,34 @@ class FridgeProvider with ChangeNotifier {
           .collection('fridges')
           .where(FieldPath.documentId, whereIn: fridgeIds)
           .get();
-      _fridges = fridgesSnapshot.docs
-          .map((doc) => Fridge.fromJson(doc.data()))
+      final List<Fridge> loadedFridges = [];
+      for (final doc in fridgesSnapshot.docs) {
+        print(
+            '[FridgeProvider] Try parsing fridge doc: id=${doc.id}, data=${doc.data()}');
+        try {
+          var fridge = Fridge.fromJson(doc.data());
+          // sharedWith에 1명 이상 있으면 type을 '공유용'으로 강제
+          if (fridge.sharedWith.isNotEmpty) {
+            fridge = fridge.copyWith(type: '공유용');
+          }
+          loadedFridges.add(fridge);
+          print('[FridgeProvider] Successfully parsed fridge: id=${doc.id}');
+        } catch (e, stack) {
+          print(
+              '[FridgeProvider] ERROR parsing fridge: id=${doc.id}, error=$e');
+          print(stack);
+        }
+      }
+      // fridgeIds 배열 순서대로 정렬
+      _fridges = fridgeIds
+          .map((id) => loadedFridges.firstWhere((f) => f.id == id))
           .toList();
-      // order 기준 정렬
-      _fridges.sort((a, b) => (a.order ?? 0).compareTo(b.order ?? 0));
       print('[FridgeProvider] _fridges.length = \\${_fridges.length}');
       if (_fridges.isNotEmpty) {
-        _currentFridgeId = _fridges.first.id;
+        // 기존 선택값이 있으면 유지, 없으면 첫 번째로 변경
+        if (!_fridges.any((f) => f.id == _currentFridgeId)) {
+          _currentFridgeId = _fridges.first.id;
+        }
       }
       notifyListeners();
     } catch (e) {
@@ -586,6 +639,8 @@ class FridgeProvider with ChangeNotifier {
         await fridgeDoc.reference.update({
           'sharedWith': FieldValue.arrayUnion([user.uid])
         });
+        // type을 '공유용'으로 강제 update
+        await fridgeDoc.reference.update({'type': '공유용'});
         // users/{uid}/fridgeIds에 fridgeId 추가
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'fridgeIds': FieldValue.arrayUnion([fridgeId])
@@ -622,11 +677,11 @@ class FridgeProvider with ChangeNotifier {
     if (user == null) return;
     final fridge = _fridges.removeAt(oldIndex);
     _fridges.insert(newIndex, fridge);
-    // order 값 재할당
-    for (int i = 0; i < _fridges.length; i++) {
-      _fridges[i] = _fridges[i].copyWith(order: i);
-      await saveFridgeToFirestore(user.uid, _fridges[i]);
-    }
+    // fridgeIds 배열 순서 update (사용자별 냉장고 순서)
+    final newFridgeIds = _fridges.map((f) => f.id).toList();
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'fridgeIds': newFridgeIds,
+    });
     notifyListeners();
   }
 }

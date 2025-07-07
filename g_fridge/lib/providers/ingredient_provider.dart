@@ -23,12 +23,17 @@ class IngredientProvider extends ChangeNotifier {
         .orderBy('ingredientName')
         .snapshots()
         .listen((snapshot) {
-      print(
-          '[IngredientProvider] ingredients updated: ${snapshot.docs.length}');
-      _ingredients = snapshot.docs
-          .map((doc) => Ingredient.fromFirestore(doc.data(), doc.id))
-          .toList();
-      notifyListeners();
+      try {
+        print(
+            '[IngredientProvider] ingredients updated: ${snapshot.docs.length}');
+        _ingredients = snapshot.docs
+            .map((doc) => Ingredient.fromFirestore(doc.data(), doc.id))
+            .toList();
+        notifyListeners();
+      } catch (e, stack) {
+        print('[IngredientProvider] ERROR: $e');
+        print(stack);
+      }
     });
   }
 

@@ -8,7 +8,6 @@ class Fridge {
   final DateTime lastUpdated;
   final String creatorId;
   final List<Map<String, dynamic>>? inviteCodes;
-  final int? order;
   final List<String> sharedWith;
 
   Fridge({
@@ -19,7 +18,6 @@ class Fridge {
     DateTime? lastUpdated,
     required this.creatorId,
     this.inviteCodes,
-    this.order,
     List<String>? sharedWith,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
@@ -34,7 +32,6 @@ class Fridge {
     DateTime? lastUpdated,
     String? creatorId,
     List<Map<String, dynamic>>? inviteCodes,
-    int? order,
     List<String>? sharedWith,
   }) {
     return Fridge(
@@ -45,7 +42,6 @@ class Fridge {
       lastUpdated: lastUpdated ?? this.lastUpdated,
       creatorId: creatorId ?? this.creatorId,
       inviteCodes: inviteCodes ?? this.inviteCodes,
-      order: order ?? this.order,
       sharedWith: sharedWith ?? this.sharedWith,
     );
   }
@@ -59,30 +55,31 @@ class Fridge {
       'lastUpdated': lastUpdated.toIso8601String(),
       'creatorId': creatorId,
       if (inviteCodes != null) 'inviteCodes': inviteCodes,
-      if (order != null) 'order': order,
       'sharedWith': sharedWith,
     };
   }
 
   factory Fridge.fromJson(Map<String, dynamic> json) {
     return Fridge(
-      id: json['id'],
-      name: json['name'],
-      type: json['type'],
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      type: json['type']?.toString() ?? '개인용',
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
       lastUpdated: json['lastUpdated'] != null
           ? DateTime.parse(json['lastUpdated'])
           : DateTime.now(),
-      creatorId: json['creatorId'] ?? '',
+      creatorId: json['creatorId']?.toString() ?? '',
       inviteCodes: (json['inviteCodes'] as List?)
-          ?.map((e) => Map<String, dynamic>.from(e))
+          ?.where((e) => e != null && e is Map)
+          .map((e) => Map<String, dynamic>.from(e as Map))
           .toList(),
-      order: json['order'],
-      sharedWith:
-          (json['sharedWith'] as List?)?.map((e) => e.toString()).toList() ??
-              [],
+      sharedWith: (json['sharedWith'] as List?)
+              ?.where((e) => e != null)
+              .map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 }

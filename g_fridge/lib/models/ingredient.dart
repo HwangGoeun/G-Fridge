@@ -26,6 +26,15 @@ class Ingredient {
   }
 
   factory Ingredient.fromFirestore(Map<String, dynamic> firestore, String id) {
+    DateTime? expirationDate;
+    final exp = firestore['expirationDate'];
+    if (exp is Timestamp) {
+      expirationDate = exp.toDate();
+    } else if (exp is String && exp.isNotEmpty) {
+      expirationDate = DateTime.tryParse(exp);
+    } else {
+      expirationDate = null;
+    }
     return Ingredient(
       id: id,
       ingredientName: firestore['ingredientName'],
@@ -34,9 +43,7 @@ class Ingredient {
         (e) => e.toString().split('.').last == firestore['storageType'],
         orElse: () => StorageType.refrigerated,
       ),
-      expirationDate: firestore['expirationDate'] != null
-          ? (firestore['expirationDate'] as Timestamp).toDate()
-          : null,
+      expirationDate: expirationDate,
     );
   }
 
