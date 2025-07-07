@@ -20,6 +20,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'my_page_screen.dart';
 import 'add_fridge_screen.dart';
 import 'package:reorderables/reorderables.dart';
+import 'custom_tab_bar.dart';
 
 // GoogleAuthHelper는 login_screen.dart에서 import됨
 
@@ -377,71 +378,6 @@ class _FridgeScreenState extends State<FridgeScreen>
     }
   }
 
-  Widget _buildCustomTabBar(BuildContext context) {
-    final tabTitles = ['냉장', '냉동', '실온'];
-    final selectedIndex = _tabController.index;
-    final screenWidth = MediaQuery.of(context).size.width;
-    const tabHeight = 40.0;
-    final borderRadius = BorderRadius.circular(12);
-
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: screenWidth * 0.08,
-        vertical: 8,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: List.generate(tabTitles.length, (i) {
-          final isSelected = selectedIndex == i;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                _tabController.animateTo(i);
-                setState(() {});
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                height: tabHeight,
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.blue[600] : Colors.transparent,
-                  borderRadius: i == 0
-                      ? BorderRadius.only(
-                          topLeft: borderRadius.topLeft,
-                          bottomLeft: borderRadius.bottomLeft)
-                      : i == tabTitles.length - 1
-                          ? BorderRadius.only(
-                              topRight: borderRadius.topRight,
-                              bottomRight: borderRadius.bottomRight)
-                          : BorderRadius.zero,
-                ),
-                child: Center(
-                  child: Text(
-                    tabTitles[i],
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.blue[600],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final tabIdx = _cartTabController?.index ?? 0;
@@ -642,10 +578,7 @@ class _FridgeScreenState extends State<FridgeScreen>
                           },
                           child: const Text(
                             '내 정보 수정하기',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                decoration: TextDecoration.underline),
+                            style: TextStyle(color: Colors.white, fontSize: 14),
                           ),
                         );
                       },
@@ -1093,7 +1026,10 @@ class _FridgeScreenState extends State<FridgeScreen>
         bottom: _selectedTabIndex == 0
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(48),
-                child: _buildCustomTabBar(context),
+                child: CustomTabBar(
+                  tabController: _tabController,
+                  tabTitles: const ['냉장', '냉동', '실온'],
+                ),
               )
             : null,
       ),
@@ -1300,9 +1236,21 @@ class _EditFridgeIngredientDialogState
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -1311,14 +1259,20 @@ class _EditFridgeIngredientDialogState
               children: [
                 const Text('재료 수정',
                     style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 20),
+                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 24),
                 // 이름
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: '재료 이름',
-                    prefixIcon: Icon(Icons.inventory_2_outlined),
+                    prefixIcon: const Icon(Icons.inventory_2_outlined),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -1327,7 +1281,7 @@ class _EditFridgeIngredientDialogState
                     return null;
                   },
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 // 수량
                 Row(
                   children: [
@@ -1360,7 +1314,7 @@ class _EditFridgeIngredientDialogState
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 // 보관 방식
                 Row(
                   children: [
@@ -1370,7 +1324,7 @@ class _EditFridgeIngredientDialogState
                         style: TextStyle(fontWeight: FontWeight.w600)),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: StorageType.values.map((type) {
@@ -1409,7 +1363,7 @@ class _EditFridgeIngredientDialogState
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 // 유통기한
                 Row(
                   children: [
@@ -1420,7 +1374,7 @@ class _EditFridgeIngredientDialogState
                         style: TextStyle(fontWeight: FontWeight.w600)),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
