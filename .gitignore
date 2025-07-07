@@ -49,4 +49,3 @@
 # Firebase/Google config (ignore anywhere in project)
 **/google-services.json
 **/GoogleService-Info.plist
-**/firebase.json
