@@ -55,11 +55,17 @@ class ShoppingCartProvider with ChangeNotifier {
           .collection('fridges')
           .doc(_fridgeId)
           .collection('shopping_cart')
-          .add(ingredient.toFirestore());
+          .doc(ingredient.id)
+          .set(ingredient.toFirestore());
     }
   }
 
   Future<void> removeItem(String ingredientId) async {
+    print('[removeItem] 삭제 시도 id: $ingredientId');
+    print('[removeItem] 현재 장바구니 아이템 목록:');
+    for (final item in _cartItems) {
+      print('  - id: ${item.id}, name: ${item.ingredientName}');
+    }
     await _firestore
         .collection('fridges')
         .doc(_fridgeId)

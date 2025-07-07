@@ -27,12 +27,12 @@ class ShoppingCartScreen extends StatefulWidget {
 class _ShoppingCartScreenState extends State<ShoppingCartScreen>
     with TickerProviderStateMixin {
   TabController? _tabController;
-  bool _selectionMode = false;
-  final List<Set<String>> _tabSelectedIds = [
-    <String>{},
-    <String>{},
-    <String>{}
-  ];
+  // bool _selectionMode = false;
+  // final List<Set<String>> _tabSelectedIds = [
+  //   <String>{},
+  //   <String>{},
+  //   <String>{}
+  // ];
 
   @override
   void initState() {
@@ -52,25 +52,30 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
           backgroundColor: Colors.white,
           elevation: 0,
           automaticallyImplyLeading: false,
-          title: _selectionMode
+          title: widget.selectionMode
               ? Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
                       tooltip: '뒤로가기',
                       onPressed: () {
-                        setState(() {
-                          _selectionMode = false;
-                          for (int i = 0; i < 3; i++) {
-                            _tabSelectedIds[i].clear();
+                        if (widget.onToggleSelect != null) {
+                          // 전체 선택 해제
+                          for (int i = 0;
+                              i < widget.selectedIdsList.length;
+                              i++) {
+                            for (final id
+                                in widget.selectedIdsList[i].toList()) {
+                              widget.onToggleSelect!(i, id);
+                            }
                           }
-                        });
+                        }
                       },
                     ),
                     const Spacer(),
                     IconButton(
                       icon: Icon(
-                        _tabSelectedIds[tabIdx].length ==
+                        widget.selectedIdsList[tabIdx].length ==
                                     _getTabItems(context)[tabIdx].length &&
                                 _getTabItems(context)[tabIdx].isNotEmpty
                             ? Icons.check_box
@@ -79,90 +84,41 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                       tooltip: '전체 선택',
                       onPressed: () {
                         final items = _getTabItems(context)[tabIdx];
-                        setState(() {
-                          if (_tabSelectedIds[tabIdx].length == items.length) {
-                            _tabSelectedIds[tabIdx].clear();
+                        if (widget.onToggleSelect != null) {
+                          if (widget.selectedIdsList[tabIdx].length ==
+                              items.length) {
+                            // 전체 해제
+                            for (final id in items.map((i) => i.id)) {
+                              if (widget.selectedIdsList[tabIdx].contains(id)) {
+                                widget.onToggleSelect!(tabIdx, id);
+                              }
+                            }
                           } else {
-                            _tabSelectedIds[tabIdx] =
-                                items.map((i) => i.id).toSet();
+                            // 전체 선택
+                            for (final id in items.map((i) => i.id)) {
+                              if (!widget.selectedIdsList[tabIdx]
+                                  .contains(id)) {
+                                widget.onToggleSelect!(tabIdx, id);
+                              }
+                            }
                           }
-                        });
+                        }
                       },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.kitchen_outlined),
-                      tooltip: '선택한 재료 냉장고에 추가',
-                      onPressed: _tabSelectedIds[tabIdx].isEmpty
-                          ? null
-                          : () {
-                              final fridgeProvider =
-                                  Provider.of<FridgeProvider>(context,
-                                      listen: false);
-                              final cartProvider =
-                                  Provider.of<ShoppingCartProvider>(context,
-                                      listen: false);
-                              final items = _getTabItems(context)[tabIdx]
-                                  .where((i) =>
-                                      _tabSelectedIds[tabIdx].contains(i.id))
-                                  .toList();
-                              for (final ingredient in items) {
-                                final newIngredient = ingredient.copyWith(
-                                  id: const Uuid().v4(),
-                                  expirationDate: null,
-                                );
-                                fridgeProvider.addIngredientToCurrentFridge(
-                                    newIngredient);
-                                cartProvider.removeItem(ingredient.id);
-                              }
-                              setState(() {
-                                _tabSelectedIds[tabIdx].clear();
-                                _selectionMode = false;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('선택한 재료가 냉장고에 추가되었습니다!'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: '선택 삭제',
-                      onPressed: _tabSelectedIds[tabIdx].isEmpty
-                          ? null
-                          : () {
-                              final cartProvider =
-                                  Provider.of<ShoppingCartProvider>(context,
-                                      listen: false);
-                              final idsToDelete =
-                                  _tabSelectedIds[tabIdx].toList();
-                              for (final id in idsToDelete) {
-                                cartProvider.removeItem(id);
-                              }
-                              setState(() {
-                                _tabSelectedIds[tabIdx].clear();
-                                _selectionMode = false;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('선택한 재료가 삭제되었습니다.')),
-                              );
-                            },
                     ),
                   ],
                 )
               : const Text('장바구니', style: TextStyle(color: Colors.black)),
-          actions: _selectionMode
+          actions: widget.selectionMode
               ? []
               : [
                   IconButton(
                     icon: const Icon(Icons.check_box_outlined),
                     tooltip: '전체 선택 모드',
                     onPressed: () {
-                      setState(() {
-                        _selectionMode = true;
-                      });
+                      if (widget.onToggleSelect != null) {
+                        // selectionMode를 부모에서 관리해야 함
+                        // 예: setState(() => selectionMode = true)
+                      }
                     },
                   ),
                 ],
@@ -213,6 +169,9 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                               value: widget.selectedIdsList[tabIdx]
                                   .contains(ingredient.id),
                               onChanged: (_) {
+                                print('[체크박스] onChanged: ${ingredient.id}');
+                                print(
+                                    '[체크박스] 현재 선택된 id 리스트: ${widget.selectedIdsList[tabIdx]}');
                                 if (widget.onToggleSelect != null) {
                                   widget.onToggleSelect!(tabIdx, ingredient.id);
                                 }
@@ -240,7 +199,7 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                             ),
                           ),
                           // 수량 조절
-                          if (!_selectionMode)
+                          if (!widget.selectionMode)
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -273,7 +232,7 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                               ],
                             ),
                           // 냉장고 추가 버튼 (선택 모드 아닐 때만)
-                          if (!_selectionMode)
+                          if (!widget.selectionMode)
                             IconButton(
                               icon: const Icon(Icons.kitchen_outlined),
                               onPressed: () {

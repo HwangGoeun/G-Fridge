@@ -200,11 +200,7 @@ class _FridgeScreenState extends State<FridgeScreen>
   // 전체 선택 모드
   bool _selectionMode = false;
   // 장바구니 탭 서브탭별 선택 상태
-  final List<Set<String>> _cartTabSelectedIds = [
-    <String>{},
-    <String>{},
-    <String>{}
-  ];
+  List<Set<String>> _cartTabSelectedIds = [<String>{}, <String>{}, <String>{}];
 
   @override
   void initState() {
@@ -291,7 +287,7 @@ class _FridgeScreenState extends State<FridgeScreen>
                   fridgeProvider.decreaseQuantityInCurrentFridge(ingredient.id),
               onCart: () {
                 final ingredientForCart = Ingredient(
-                  id: ingredient.id,
+                  id: const Uuid().v4(),
                   ingredientName: ingredient.ingredientName,
                   storageType: ingredient.storageType,
                   quantity: 1.0,
@@ -858,9 +854,7 @@ class _FridgeScreenState extends State<FridgeScreen>
                             for (final ingredient in ingredients) {
                               cartProvider.addItem(
                                 Ingredient(
-                                  id: DateTime.now()
-                                      .millisecondsSinceEpoch
-                                      .toString(),
+                                  id: const Uuid().v4(),
                                   ingredientName: ingredient.ingredientName,
                                   storageType: ingredient.storageType,
                                   quantity: 1.0,
@@ -1023,39 +1017,34 @@ class _FridgeScreenState extends State<FridgeScreen>
                       IconButton(
                         icon: const Icon(Icons.delete_outline),
                         tooltip: '선택 삭제',
-                        onPressed:
-                            _cartTabSelectedIds.any((set) => set.isNotEmpty)
-                                ? () {
-                                    final fridgeProvider =
-                                        Provider.of<FridgeProvider>(context,
-                                            listen: false);
-                                    final selectedItems =
-                                        Provider.of<IngredientProvider>(context,
-                                                listen: false)
-                                            .ingredients
-                                            .where((i) => _cartTabSelectedIds
-                                                .expand((set) => set)
-                                                .contains(i.id))
-                                            .toList();
-                                    for (final ingredient in selectedItems) {
-                                      fridgeProvider
-                                          .removeIngredientFromCurrentFridge(
-                                              ingredient.id);
-                                    }
-                                    setState(() {
-                                      for (int i = 0; i < 3; i++) {
-                                        _cartTabSelectedIds[i].clear();
-                                      }
-                                      _tabSelectionMode[1] = false;
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('선택한 재료가 삭제되었습니다.'),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
+                        onPressed: _cartTabSelectedIds
+                                .any((set) => set.isNotEmpty)
+                            ? () {
+                                final cartProvider =
+                                    Provider.of<ShoppingCartProvider>(context,
+                                        listen: false);
+                                final tabIdx = _cartTabController?.index ?? 0;
+                                final idsToDelete =
+                                    _cartTabSelectedIds[tabIdx].toList();
+                                print('[앱바 선택 삭제] 삭제할 id 리스트: $idsToDelete');
+                                for (final id in idsToDelete) {
+                                  print('[앱바 선택 삭제] removeItem 호출: $id');
+                                  cartProvider.removeItem(id);
+                                }
+                                setState(() {
+                                  for (int i = 0; i < 3; i++) {
+                                    _cartTabSelectedIds[i].clear();
                                   }
-                                : null,
+                                  _tabSelectionMode[1] = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('선택한 장바구니 재료가 삭제되었습니다.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            : null,
                       ),
                     ],
                   )
@@ -1169,16 +1158,29 @@ class _FridgeScreenState extends State<FridgeScreen>
             )
           : _selectedTabIndex == 1
               ? ShoppingCartScreen(
+                  key: ValueKey(_cartTabSelectedIds.hashCode.toString() +
+                      _tabSelectionMode[1].toString()),
                   tabController: _cartTabController,
                   selectionMode: _tabSelectionMode[1],
                   selectedIdsList: _cartTabSelectedIds,
                   onToggleSelect: (tabIdx, id) {
                     setState(() {
-                      if (_cartTabSelectedIds[tabIdx].contains(id)) {
-                        _cartTabSelectedIds[tabIdx].remove(id);
+                      final newSet =
+                          Set<String>.from(_cartTabSelectedIds[tabIdx]);
+                      if (newSet.contains(id)) {
+                        newSet.remove(id);
                       } else {
-                        _cartTabSelectedIds[tabIdx].add(id);
+                        newSet.add(id);
                       }
+                      // 완전히 새 List로 할당
+                      _cartTabSelectedIds = List<Set<String>>.generate(
+                        3,
+                        (i) => i == tabIdx
+                            ? newSet
+                            : Set<String>.from(_cartTabSelectedIds[i]),
+                      );
+                      print(
+                          '[FridgeScreen] 체크박스 클릭 후 _cartTabSelectedIds[$tabIdx]: ${_cartTabSelectedIds[tabIdx]}');
                     });
                   },
                 )
