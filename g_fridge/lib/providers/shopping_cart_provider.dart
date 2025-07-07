@@ -8,6 +8,14 @@ class ShoppingCartProvider with ChangeNotifier {
   List<Ingredient> _cartItems = [];
 
   List<Ingredient> get cartItems => _cartItems;
+  List<Ingredient> get refrigeratedItems => _cartItems
+      .where((i) => i.storageType == StorageType.refrigerated)
+      .toList();
+  List<Ingredient> get frozenItems =>
+      _cartItems.where((i) => i.storageType == StorageType.frozen).toList();
+  List<Ingredient> get roomTemperatureItems => _cartItems
+      .where((i) => i.storageType == StorageType.roomTemperature)
+      .toList();
 
   void setFridgeId(String fridgeId) {
     _fridgeId = fridgeId;
