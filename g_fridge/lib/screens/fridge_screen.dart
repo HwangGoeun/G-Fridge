@@ -267,13 +267,11 @@ class _FridgeScreenState extends State<FridgeScreen>
           return GestureDetector(
             onTap: selectionMode
                 ? null
-                : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditIngredientScreen(
-                          ingredient: ingredient,
-                        ),
+                : () async {
+                    await showDialog(
+                      context: context,
+                      builder: (context) => _EditFridgeIngredientDialog(
+                        ingredient: ingredient,
                       ),
                     );
                   },
@@ -1235,4 +1233,262 @@ List<Ingredient> getIngredientsByTab(
   return ingredients
       .where((i) => i.storageType == StorageType.roomTemperature)
       .toList();
+}
+
+class _EditFridgeIngredientDialog extends StatefulWidget {
+  final Ingredient ingredient;
+  const _EditFridgeIngredientDialog({Key? key, required this.ingredient})
+      : super(key: key);
+
+  @override
+  State<_EditFridgeIngredientDialog> createState() =>
+      _EditFridgeIngredientDialogState();
+}
+
+class _EditFridgeIngredientDialogState
+    extends State<_EditFridgeIngredientDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  double _quantity = 1.0;
+  StorageType _selectedStorageType = StorageType.refrigerated;
+  DateTime? _selectedExpirationDate;
+
+  final Map<StorageType, String> _storageTypeLabels = {
+    StorageType.refrigerated: '냉장',
+    StorageType.frozen: '냉동',
+    StorageType.roomTemperature: '실온',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController =
+        TextEditingController(text: widget.ingredient.ingredientName);
+    _quantity = widget.ingredient.quantity;
+    _selectedStorageType = widget.ingredient.storageType;
+    _selectedExpirationDate = widget.ingredient.expirationDate;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _updateIngredient() async {
+    if (_formKey.currentState!.validate()) {
+      final updatedIngredient = widget.ingredient.copyWith(
+        ingredientName: _nameController.text,
+        quantity: _quantity,
+        storageType: _selectedStorageType,
+        expirationDate: _selectedExpirationDate,
+      );
+      await Provider.of<FridgeProvider>(context, listen: false)
+          .updateIngredientInCurrentFridge(updatedIngredient);
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('재료가 수정되었습니다!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('재료 수정',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                // 이름
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: '재료 이름',
+                    prefixIcon: Icon(Icons.inventory_2_outlined),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '재료 이름을 입력해주세요.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                // 수량
+                Row(
+                  children: [
+                    Icon(Icons.scale_outlined, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    const Text('수량',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: () {
+                        setState(() {
+                          if (_quantity > 0.5) _quantity -= 0.5;
+                        });
+                      },
+                    ),
+                    Container(
+                      width: 50,
+                      alignment: Alignment.center,
+                      child: Text(_quantity.toString(),
+                          style: const TextStyle(fontSize: 16)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: () {
+                        setState(() {
+                          _quantity += 0.5;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // 보관 방식
+                Row(
+                  children: [
+                    Icon(Icons.storage_outlined, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    const Text('보관 방식',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: StorageType.values.map((type) {
+                    bool isSelected = _selectedStorageType == type;
+                    return Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedStorageType = type;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isSelected
+                                ? Colors.blue[600]
+                                : Colors.grey[100],
+                            foregroundColor:
+                                isSelected ? Colors.white : Colors.grey[700],
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            _storageTypeLabels[type]!,
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+                // 유통기한
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today_outlined,
+                        color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    const Text('유통기한',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _selectedExpirationDate == null
+                            ? '날짜를 선택하세요'
+                            : '${_selectedExpirationDate!.year}-${_selectedExpirationDate!.month.toString().padLeft(2, '0')}-${_selectedExpirationDate!.day.toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _selectedExpirationDate == null
+                              ? Colors.grey[500]
+                              : Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final now = DateTime.now();
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedExpirationDate ?? now,
+                          firstDate: DateTime(now.year - 1),
+                          lastDate: DateTime(now.year + 5),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selectedExpirationDate = picked;
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_month),
+                      label: const Text('선택'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[600],
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _updateIngredient,
+                    icon: const Icon(Icons.save),
+                    label: const Text('수정하기'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[600],
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

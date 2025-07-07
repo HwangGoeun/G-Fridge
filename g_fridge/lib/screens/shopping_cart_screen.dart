@@ -159,104 +159,118 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4.0),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        children: [
-                          // 삭제 or 체크박스
-                          if (widget.selectionMode)
-                            Checkbox(
-                              value: widget.selectedIdsList[tabIdx]
-                                  .contains(ingredient.id),
-                              onChanged: (_) {
-                                print('[체크박스] onChanged: ${ingredient.id}');
-                                print(
-                                    '[체크박스] 현재 선택된 id 리스트: ${widget.selectedIdsList[tabIdx]}');
-                                if (widget.onToggleSelect != null) {
-                                  widget.onToggleSelect!(tabIdx, ingredient.id);
-                                }
-                              },
-                              visualDensity: VisualDensity.compact,
-                            )
-                          else
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 20),
-                              onPressed: () {
-                                Provider.of<ShoppingCartProvider>(context,
-                                        listen: false)
-                                    .removeItem(ingredient.id);
-                              },
-                            ),
-                          // 이름
-                          Expanded(
-                            child: Text(
-                              ingredient.ingredientName,
-                              style: const TextStyle(
-                                fontSize: 16,
+                    child: InkWell(
+                      onTap: widget.selectionMode
+                          ? null
+                          : () async {
+                              await showDialog(
+                                context: context,
+                                builder: (context) => _EditCartIngredientDialog(
+                                  ingredient: ingredient,
+                                ),
+                              );
+                            },
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            // 삭제 or 체크박스
+                            if (widget.selectionMode)
+                              Checkbox(
+                                value: widget.selectedIdsList[tabIdx]
+                                    .contains(ingredient.id),
+                                onChanged: (_) {
+                                  print('[체크박스] onChanged: ${ingredient.id}');
+                                  print(
+                                      '[체크박스] 현재 선택된 id 리스트: ${widget.selectedIdsList[tabIdx]}');
+                                  if (widget.onToggleSelect != null) {
+                                    widget.onToggleSelect!(
+                                        tabIdx, ingredient.id);
+                                  }
+                                },
+                                visualDensity: VisualDensity.compact,
+                              )
+                            else
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 20),
+                                onPressed: () {
+                                  Provider.of<ShoppingCartProvider>(context,
+                                          listen: false)
+                                      .removeItem(ingredient.id);
+                                },
                               ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                          // 수량 조절
-                          if (!widget.selectionMode)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline,
-                                      size: 20),
-                                  onPressed: () {
-                                    Provider.of<ShoppingCartProvider>(context,
-                                            listen: false)
-                                        .decreaseQuantity(ingredient.id);
-                                  },
+                            // 이름
+                            Expanded(
+                              child: Text(
+                                ingredient.ingredientName,
+                                style: const TextStyle(
+                                  fontSize: 16,
                                 ),
-                                SizedBox(
-                                  width: 30,
-                                  child: Text(
-                                    ingredient.quantity.toString(),
-                                    style: const TextStyle(fontSize: 16),
-                                    textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                            // 수량 조절
+                            if (!widget.selectionMode)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                        Icons.remove_circle_outline,
+                                        size: 20),
+                                    onPressed: () {
+                                      Provider.of<ShoppingCartProvider>(context,
+                                              listen: false)
+                                          .decreaseQuantity(ingredient.id);
+                                    },
                                   ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.add_circle_outline,
-                                      size: 20),
-                                  onPressed: () {
-                                    Provider.of<ShoppingCartProvider>(context,
-                                            listen: false)
-                                        .increaseQuantity(ingredient.id);
-                                  },
-                                ),
-                              ],
-                            ),
-                          // 냉장고 추가 버튼 (선택 모드 아닐 때만)
-                          if (!widget.selectionMode)
-                            IconButton(
-                              icon: const Icon(Icons.kitchen_outlined),
-                              onPressed: () {
-                                final fridgeProvider =
-                                    Provider.of<FridgeProvider>(context,
-                                        listen: false);
-                                final newIngredient = ingredient.copyWith(
-                                    id: const Uuid().v4(),
-                                    expirationDate: null);
-                                fridgeProvider.addIngredientToCurrentFridge(
-                                    newIngredient);
-                                Provider.of<ShoppingCartProvider>(context,
-                                        listen: false)
-                                    .removeItem(ingredient.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        '${ingredient.ingredientName}이 냉장고에 추가되었습니다.'),
-                                    duration: const Duration(seconds: 2),
+                                  SizedBox(
+                                    width: 30,
+                                    child: Text(
+                                      ingredient.quantity.toString(),
+                                      style: const TextStyle(fontSize: 16),
+                                      textAlign: TextAlign.center,
+                                    ),
                                   ),
-                                );
-                              },
-                            ),
-                        ],
+                                  IconButton(
+                                    icon: const Icon(Icons.add_circle_outline,
+                                        size: 20),
+                                    onPressed: () {
+                                      Provider.of<ShoppingCartProvider>(context,
+                                              listen: false)
+                                          .increaseQuantity(ingredient.id);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            // 냉장고 추가 버튼 (선택 모드 아닐 때만)
+                            if (!widget.selectionMode)
+                              IconButton(
+                                icon: const Icon(Icons.kitchen_outlined),
+                                onPressed: () {
+                                  final fridgeProvider =
+                                      Provider.of<FridgeProvider>(context,
+                                          listen: false);
+                                  final newIngredient = ingredient.copyWith(
+                                      id: const Uuid().v4(),
+                                      expirationDate: null);
+                                  fridgeProvider.addIngredientToCurrentFridge(
+                                      newIngredient);
+                                  Provider.of<ShoppingCartProvider>(context,
+                                          listen: false)
+                                      .removeItem(ingredient.id);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          '${ingredient.ingredientName}이 냉장고에 추가되었습니다.'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -277,5 +291,202 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
       cartProvider.frozenItems,
       cartProvider.roomTemperatureItems,
     ];
+  }
+}
+
+class _EditCartIngredientDialog extends StatefulWidget {
+  final Ingredient ingredient;
+  const _EditCartIngredientDialog({Key? key, required this.ingredient})
+      : super(key: key);
+
+  @override
+  State<_EditCartIngredientDialog> createState() =>
+      _EditCartIngredientDialogState();
+}
+
+class _EditCartIngredientDialogState extends State<_EditCartIngredientDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  double _quantity = 1.0;
+  StorageType _selectedStorageType = StorageType.refrigerated;
+
+  final Map<StorageType, String> _storageTypeLabels = {
+    StorageType.refrigerated: '냉장',
+    StorageType.frozen: '냉동',
+    StorageType.roomTemperature: '실온',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController =
+        TextEditingController(text: widget.ingredient.ingredientName);
+    _quantity = widget.ingredient.quantity;
+    _selectedStorageType = widget.ingredient.storageType;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _updateIngredient() async {
+    if (_formKey.currentState!.validate()) {
+      final updatedIngredient = widget.ingredient.copyWith(
+        ingredientName: _nameController.text,
+        quantity: _quantity,
+        storageType: _selectedStorageType,
+      );
+      await Provider.of<ShoppingCartProvider>(context, listen: false)
+          .updateItem(updatedIngredient);
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('재료가 수정되었습니다!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('장바구니 재료 수정',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                // 이름
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: '재료 이름',
+                    prefixIcon: Icon(Icons.inventory_2_outlined),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '재료 이름을 입력해주세요.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                // 수량
+                Row(
+                  children: [
+                    Icon(Icons.scale_outlined, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    const Text('수량',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: () {
+                        setState(() {
+                          if (_quantity > 0.5) _quantity -= 0.5;
+                        });
+                      },
+                    ),
+                    Container(
+                      width: 50,
+                      alignment: Alignment.center,
+                      child: Text(_quantity.toString(),
+                          style: const TextStyle(fontSize: 16)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: () {
+                        setState(() {
+                          _quantity += 0.5;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // 보관 방식
+                Row(
+                  children: [
+                    Icon(Icons.storage_outlined, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    const Text('보관 방식',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: StorageType.values.map((type) {
+                    bool isSelected = _selectedStorageType == type;
+                    return Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedStorageType = type;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isSelected
+                                ? Colors.blue[600]
+                                : Colors.grey[100],
+                            foregroundColor:
+                                isSelected ? Colors.white : Colors.grey[700],
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            _storageTypeLabels[type]!,
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _updateIngredient,
+                    icon: const Icon(Icons.save),
+                    label: const Text('수정하기'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[600],
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

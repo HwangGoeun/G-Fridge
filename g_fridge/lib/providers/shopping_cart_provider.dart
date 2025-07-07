@@ -99,6 +99,19 @@ class ShoppingCartProvider with ChangeNotifier {
     }
   }
 
+  Future<void> updateItem(Ingredient updatedIngredient) async {
+    await _firestore
+        .collection('fridges')
+        .doc(_fridgeId)
+        .collection('shopping_cart')
+        .doc(updatedIngredient.id)
+        .update({
+      'ingredientName': updatedIngredient.ingredientName,
+      'quantity': updatedIngredient.quantity,
+      'storageType': updatedIngredient.storageType.toString().split('.').last,
+    });
+  }
+
   Future<void> clearCart() async {
     final WriteBatch batch = _firestore.batch();
     final querySnapshot = await _firestore

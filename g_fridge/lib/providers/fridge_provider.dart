@@ -303,7 +303,7 @@ class FridgeProvider with ChangeNotifier {
     }
   }
 
-  // 현재 냉장고의 재료 수량 감소
+  // 현장고의 재료 수량 감소
   void decreaseQuantityInCurrentFridge(String ingredientId) {
     if (_currentFridgeId.isNotEmpty) {
       final ingredients = _fridgeIngredients[_currentFridgeId];
@@ -683,5 +683,30 @@ class FridgeProvider with ChangeNotifier {
       'fridgeIds': newFridgeIds,
     });
     notifyListeners();
+  }
+
+  Future<void> updateIngredientInCurrentFridge(
+      Ingredient updatedIngredient) async {
+    if (_currentFridgeId.isNotEmpty) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('fridges')
+            .doc(_currentFridgeId)
+            .collection('ingredients')
+            .doc(updatedIngredient.id)
+            .update({
+          'ingredientName': updatedIngredient.ingredientName,
+          'quantity': updatedIngredient.quantity,
+          'storageType':
+              updatedIngredient.storageType.toString().split('.').last,
+          'expirationDate': updatedIngredient.expirationDate != null
+              ? Timestamp.fromDate(updatedIngredient.expirationDate!)
+              : null,
+        });
+        await fetchIngredientsFromFirestore(user.uid, _currentFridgeId);
+        notifyListeners();
+      }
+    }
   }
 }
