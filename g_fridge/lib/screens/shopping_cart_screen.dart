@@ -9,13 +9,15 @@ import '../models/ingredient.dart';
 
 class ShoppingCartScreen extends StatefulWidget {
   final bool selectionMode;
-  final Set<String> selectedIds;
-  final void Function(String id)? onToggleSelect;
+  final List<Set<String>> selectedIdsList;
+  final void Function(int tabIdx, String id)? onToggleSelect;
+  final TabController? tabController;
   const ShoppingCartScreen({
     super.key,
     this.selectionMode = false,
-    this.selectedIds = const {},
+    required this.selectedIdsList,
     this.onToggleSelect,
+    this.tabController,
   });
 
   @override
@@ -23,17 +25,25 @@ class ShoppingCartScreen extends StatefulWidget {
 }
 
 class _ShoppingCartScreenState extends State<ShoppingCartScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+    with TickerProviderStateMixin {
+  TabController? _tabController;
+  bool _selectionMode = false;
+  final List<Set<String>> _tabSelectedIds = [
+    <String>{},
+    <String>{},
+    <String>{}
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController =
+        widget.tabController ?? TabController(length: 3, vsync: this);
   }
 
   @override
   Widget build(BuildContext context) {
+    final tabIdx = _tabController?.index ?? 0;
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: PreferredSize(
@@ -42,7 +52,120 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
           backgroundColor: Colors.white,
           elevation: 0,
           automaticallyImplyLeading: false,
-          title: const Text('장바구니', style: TextStyle(color: Colors.black)),
+          title: _selectionMode
+              ? Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: '뒤로가기',
+                      onPressed: () {
+                        setState(() {
+                          _selectionMode = false;
+                          for (int i = 0; i < 3; i++) {
+                            _tabSelectedIds[i].clear();
+                          }
+                        });
+                      },
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: Icon(
+                        _tabSelectedIds[tabIdx].length ==
+                                    _getTabItems(context)[tabIdx].length &&
+                                _getTabItems(context)[tabIdx].isNotEmpty
+                            ? Icons.check_box
+                            : Icons.check_box_outline_blank,
+                      ),
+                      tooltip: '전체 선택',
+                      onPressed: () {
+                        final items = _getTabItems(context)[tabIdx];
+                        setState(() {
+                          if (_tabSelectedIds[tabIdx].length == items.length) {
+                            _tabSelectedIds[tabIdx].clear();
+                          } else {
+                            _tabSelectedIds[tabIdx] =
+                                items.map((i) => i.id).toSet();
+                          }
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.kitchen_outlined),
+                      tooltip: '선택한 재료 냉장고에 추가',
+                      onPressed: _tabSelectedIds[tabIdx].isEmpty
+                          ? null
+                          : () {
+                              final fridgeProvider =
+                                  Provider.of<FridgeProvider>(context,
+                                      listen: false);
+                              final cartProvider =
+                                  Provider.of<ShoppingCartProvider>(context,
+                                      listen: false);
+                              final items = _getTabItems(context)[tabIdx]
+                                  .where((i) =>
+                                      _tabSelectedIds[tabIdx].contains(i.id))
+                                  .toList();
+                              for (final ingredient in items) {
+                                final newIngredient = ingredient.copyWith(
+                                  id: const Uuid().v4(),
+                                  expirationDate: null,
+                                );
+                                fridgeProvider.addIngredientToCurrentFridge(
+                                    newIngredient);
+                                cartProvider.removeItem(ingredient.id);
+                              }
+                              setState(() {
+                                _tabSelectedIds[tabIdx].clear();
+                                _selectionMode = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('선택한 재료가 냉장고에 추가되었습니다!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: '선택 삭제',
+                      onPressed: _tabSelectedIds[tabIdx].isEmpty
+                          ? null
+                          : () {
+                              final cartProvider =
+                                  Provider.of<ShoppingCartProvider>(context,
+                                      listen: false);
+                              final idsToDelete =
+                                  _tabSelectedIds[tabIdx].toList();
+                              for (final id in idsToDelete) {
+                                cartProvider.removeItem(id);
+                              }
+                              setState(() {
+                                _tabSelectedIds[tabIdx].clear();
+                                _selectionMode = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('선택한 재료가 삭제되었습니다.')),
+                              );
+                            },
+                    ),
+                  ],
+                )
+              : const Text('장바구니', style: TextStyle(color: Colors.black)),
+          actions: _selectionMode
+              ? []
+              : [
+                  IconButton(
+                    icon: const Icon(Icons.check_box_outlined),
+                    tooltip: '전체 선택 모드',
+                    onPressed: () {
+                      setState(() {
+                        _selectionMode = true;
+                      });
+                    },
+                  ),
+                ],
           bottom: TabBar(
             controller: _tabController,
             labelColor: Colors.blue,
@@ -58,15 +181,10 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
       ),
       body: Consumer<ShoppingCartProvider>(
         builder: (context, cartProvider, child) {
-          final List<List<Ingredient>> tabItems = [
-            cartProvider.refrigeratedItems,
-            cartProvider.frozenItems,
-            cartProvider.roomTemperatureItems,
-          ];
           return TabBarView(
             controller: _tabController,
             children: List.generate(3, (tabIdx) {
-              final items = tabItems[tabIdx];
+              final items = _getTabItems(context)[tabIdx];
               if (items.isEmpty) {
                 return const Center(
                   child: Text('장바구니가 비어있습니다.'),
@@ -92,16 +210,22 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                           // 삭제 or 체크박스
                           if (widget.selectionMode)
                             Checkbox(
-                              value: widget.selectedIds.contains(ingredient.id),
-                              onChanged: (_) =>
-                                  widget.onToggleSelect?.call(ingredient.id),
+                              value: widget.selectedIdsList[tabIdx]
+                                  .contains(ingredient.id),
+                              onChanged: (_) {
+                                if (widget.onToggleSelect != null) {
+                                  widget.onToggleSelect!(tabIdx, ingredient.id);
+                                }
+                              },
                               visualDensity: VisualDensity.compact,
                             )
                           else
                             IconButton(
                               icon: const Icon(Icons.close, size: 20),
                               onPressed: () {
-                                cartProvider.removeItem(ingredient.id);
+                                Provider.of<ShoppingCartProvider>(context,
+                                        listen: false)
+                                    .removeItem(ingredient.id);
                               },
                             ),
                           // 이름
@@ -116,7 +240,7 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                             ),
                           ),
                           // 수량 조절
-                          if (!widget.selectionMode)
+                          if (!_selectionMode)
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -124,7 +248,8 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                                   icon: const Icon(Icons.remove_circle_outline,
                                       size: 20),
                                   onPressed: () {
-                                    cartProvider
+                                    Provider.of<ShoppingCartProvider>(context,
+                                            listen: false)
                                         .decreaseQuantity(ingredient.id);
                                   },
                                 ),
@@ -140,14 +265,15 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                                   icon: const Icon(Icons.add_circle_outline,
                                       size: 20),
                                   onPressed: () {
-                                    cartProvider
+                                    Provider.of<ShoppingCartProvider>(context,
+                                            listen: false)
                                         .increaseQuantity(ingredient.id);
                                   },
                                 ),
                               ],
                             ),
                           // 냉장고 추가 버튼 (선택 모드 아닐 때만)
-                          if (!widget.selectionMode)
+                          if (!_selectionMode)
                             IconButton(
                               icon: const Icon(Icons.kitchen_outlined),
                               onPressed: () {
@@ -159,7 +285,9 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
                                     expirationDate: null);
                                 fridgeProvider.addIngredientToCurrentFridge(
                                     newIngredient);
-                                cartProvider.removeItem(ingredient.id);
+                                Provider.of<ShoppingCartProvider>(context,
+                                        listen: false)
+                                    .removeItem(ingredient.id);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
@@ -180,5 +308,15 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
         },
       ),
     );
+  }
+
+  List<List<Ingredient>> _getTabItems(BuildContext context) {
+    final cartProvider =
+        Provider.of<ShoppingCartProvider>(context, listen: false);
+    return [
+      cartProvider.refrigeratedItems,
+      cartProvider.frozenItems,
+      cartProvider.roomTemperatureItems,
+    ];
   }
 }

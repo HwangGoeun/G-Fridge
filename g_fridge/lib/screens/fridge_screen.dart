@@ -183,8 +183,9 @@ class FridgeScreen extends StatefulWidget {
 }
 
 class _FridgeScreenState extends State<FridgeScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
+  TabController? _cartTabController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedTabIndex = 0;
   // 탭별 selectionMode/selectedIds 분리
@@ -198,11 +199,23 @@ class _FridgeScreenState extends State<FridgeScreen>
   bool _isReorderMode = false;
   // 전체 선택 모드
   bool _selectionMode = false;
+  // 장바구니 탭 서브탭별 선택 상태
+  final List<Set<String>> _cartTabSelectedIds = [
+    <String>{},
+    <String>{},
+    <String>{}
+  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _cartTabController = TabController(length: 3, vsync: this);
+    _cartTabController!.addListener(() {
+      if (_selectedTabIndex == 1 && _tabSelectionMode[1]) {
+        setState(() {}); // 장바구니 탭의 서브탭 이동 시 앱바 갱신
+      }
+    });
     // FridgeProvider 초기화
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Provider.of<FridgeProvider>(context, listen: false).initialize();
@@ -437,6 +450,7 @@ class _FridgeScreenState extends State<FridgeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final tabIdx = _cartTabController?.index ?? 0;
     final ingredientProvider = Provider.of<IngredientProvider>(context);
     final fridgeProvider = Provider.of<FridgeProvider>(context);
 
@@ -906,39 +920,57 @@ class _FridgeScreenState extends State<FridgeScreen>
                         onPressed: () {
                           setState(() {
                             _tabSelectionMode[1] = false;
-                            _tabSelectedIds[1].clear();
+                            _cartTabSelectedIds[1].clear();
                           });
                         },
                       ),
                       const Spacer(),
                       IconButton(
                         icon: Icon(
-                          _tabSelectedIds[1].length ==
-                                      Provider.of<IngredientProvider>(context,
-                                              listen: false)
-                                          .ingredients
-                                          .length &&
-                                  Provider.of<IngredientProvider>(context,
-                                          listen: false)
-                                      .ingredients
-                                      .isNotEmpty
-                              ? Icons.check_box
-                              : Icons.check_box_outline_blank,
+                          () {
+                            final cartProvider =
+                                Provider.of<ShoppingCartProvider>(context,
+                                    listen: false);
+                            List<Ingredient> currentTabItems;
+                            // Use the same tab index as ShoppingCartScreen
+                            final tabIdx = _cartTabController?.index ?? 0;
+                            if (tabIdx == 0) {
+                              currentTabItems = cartProvider.refrigeratedItems;
+                            } else if (tabIdx == 1) {
+                              currentTabItems = cartProvider.frozenItems;
+                            } else {
+                              currentTabItems =
+                                  cartProvider.roomTemperatureItems;
+                            }
+                            return _cartTabSelectedIds[tabIdx].length ==
+                                        currentTabItems.length &&
+                                    currentTabItems.isNotEmpty
+                                ? Icons.check_box
+                                : Icons.check_box_outline_blank;
+                          }(),
                         ),
                         tooltip: '전체 선택',
                         onPressed: () {
-                          final ingredients = Provider.of<IngredientProvider>(
-                                  context,
-                                  listen: false)
-                              .ingredients;
+                          final cartProvider =
+                              Provider.of<ShoppingCartProvider>(context,
+                                  listen: false);
+                          List<Ingredient> currentTabItems;
+                          final tabIdx = _cartTabController?.index ?? 0;
+                          if (tabIdx == 0) {
+                            currentTabItems = cartProvider.refrigeratedItems;
+                          } else if (tabIdx == 1) {
+                            currentTabItems = cartProvider.frozenItems;
+                          } else {
+                            currentTabItems = cartProvider.roomTemperatureItems;
+                          }
                           setState(() {
-                            if (_tabSelectedIds[1].length ==
-                                ingredients.length) {
-                              _tabSelectedIds[1].clear();
+                            if (_cartTabSelectedIds[tabIdx].length ==
+                                currentTabItems.length) {
+                              _cartTabSelectedIds[tabIdx].clear();
                             } else {
-                              _tabSelectedIds[1].clear();
-                              _tabSelectedIds[1]
-                                  .addAll(ingredients.map((i) => i.id));
+                              _cartTabSelectedIds[tabIdx].clear();
+                              _cartTabSelectedIds[tabIdx]
+                                  .addAll(currentTabItems.map((i) => i.id));
                             }
                           });
                         },
@@ -946,22 +978,21 @@ class _FridgeScreenState extends State<FridgeScreen>
                       IconButton(
                         icon: const Icon(Icons.kitchen_outlined),
                         tooltip: '선택한 재료 냉장고에 추가',
-                        onPressed: _tabSelectedIds[1].isEmpty
-                            ? null
-                            : () {
+                        onPressed: _cartTabSelectedIds
+                                .any((set) => set.isNotEmpty)
+                            ? () async {
                                 final fridgeProvider =
                                     Provider.of<FridgeProvider>(context,
                                         listen: false);
                                 final cartProvider =
                                     Provider.of<ShoppingCartProvider>(context,
                                         listen: false);
-                                final selectedItems =
-                                    Provider.of<IngredientProvider>(context,
-                                            listen: false)
-                                        .ingredients
-                                        .where((i) =>
-                                            _tabSelectedIds[1].contains(i.id))
-                                        .toList();
+                                final allSelectedIds = _cartTabSelectedIds
+                                    .expand((set) => set)
+                                    .toSet();
+                                final selectedItems = cartProvider.cartItems
+                                    .where((i) => allSelectedIds.contains(i.id))
+                                    .toList();
                                 for (final ingredient in selectedItems) {
                                   final newIngredient = ingredient.copyWith(
                                     id: DateTime.now()
@@ -969,12 +1000,15 @@ class _FridgeScreenState extends State<FridgeScreen>
                                         .toString(),
                                     expirationDate: null,
                                   );
-                                  fridgeProvider.addIngredientToCurrentFridge(
-                                      newIngredient);
-                                  cartProvider.removeItem(ingredient.id);
+                                  await fridgeProvider
+                                      .addIngredientToCurrentFridge(
+                                          newIngredient);
+                                  await cartProvider.removeItem(ingredient.id);
                                 }
                                 setState(() {
-                                  _tabSelectedIds[1].clear();
+                                  for (int i = 0; i < 3; i++) {
+                                    _cartTabSelectedIds[i].clear();
+                                  }
                                   _tabSelectionMode[1] = false;
                                 });
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -983,54 +1017,64 @@ class _FridgeScreenState extends State<FridgeScreen>
                                     duration: Duration(seconds: 2),
                                   ),
                                 );
-                              },
+                              }
+                            : null,
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete_outline),
                         tooltip: '선택 삭제',
-                        onPressed: _tabSelectedIds[1].isEmpty
-                            ? null
-                            : () {
-                                final fridgeProvider =
-                                    Provider.of<FridgeProvider>(context,
-                                        listen: false);
-                                final selectedItems =
-                                    Provider.of<IngredientProvider>(context,
-                                            listen: false)
-                                        .ingredients
-                                        .where((i) =>
-                                            _tabSelectedIds[1].contains(i.id))
-                                        .toList();
-                                for (final ingredient in selectedItems) {
-                                  fridgeProvider
-                                      .removeIngredientFromCurrentFridge(
-                                          ingredient.id);
-                                }
-                                setState(() {
-                                  _tabSelectedIds[1].clear();
-                                  _tabSelectionMode[1] = false;
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('선택한 재료가 삭제되었습니다.'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
+                        onPressed:
+                            _cartTabSelectedIds.any((set) => set.isNotEmpty)
+                                ? () {
+                                    final fridgeProvider =
+                                        Provider.of<FridgeProvider>(context,
+                                            listen: false);
+                                    final selectedItems =
+                                        Provider.of<IngredientProvider>(context,
+                                                listen: false)
+                                            .ingredients
+                                            .where((i) => _cartTabSelectedIds
+                                                .expand((set) => set)
+                                                .contains(i.id))
+                                            .toList();
+                                    for (final ingredient in selectedItems) {
+                                      fridgeProvider
+                                          .removeIngredientFromCurrentFridge(
+                                              ingredient.id);
+                                    }
+                                    setState(() {
+                                      for (int i = 0; i < 3; i++) {
+                                        _cartTabSelectedIds[i].clear();
+                                      }
+                                      _tabSelectionMode[1] = false;
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('선택한 재료가 삭제되었습니다.'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                : null,
                       ),
                     ],
                   )
                 : Text(currentFridge?.name ?? 'G Fridge'),
-        actions: _selectedTabIndex == 0 && _selectionMode
+        actions: (_selectedTabIndex == 0 && _selectionMode) ||
+                (_selectedTabIndex == 1 && _tabSelectionMode[1])
             ? []
             : [
-                if (_selectedTabIndex == 0)
+                if (_selectedTabIndex == 0 || _selectedTabIndex == 1)
                   IconButton(
                     icon: const Icon(Icons.check_box_outlined),
                     tooltip: '전체 선택 모드',
                     onPressed: () {
                       setState(() {
-                        _selectionMode = true;
+                        if (_selectedTabIndex == 0) {
+                          _selectionMode = true;
+                        } else if (_selectedTabIndex == 1) {
+                          _tabSelectionMode[1] = true;
+                        }
                       });
                     },
                   ),
@@ -1125,14 +1169,15 @@ class _FridgeScreenState extends State<FridgeScreen>
             )
           : _selectedTabIndex == 1
               ? ShoppingCartScreen(
+                  tabController: _cartTabController,
                   selectionMode: _tabSelectionMode[1],
-                  selectedIds: _tabSelectedIds[1],
-                  onToggleSelect: (id) {
+                  selectedIdsList: _cartTabSelectedIds,
+                  onToggleSelect: (tabIdx, id) {
                     setState(() {
-                      if (_tabSelectedIds[1].contains(id)) {
-                        _tabSelectedIds[1].remove(id);
+                      if (_cartTabSelectedIds[tabIdx].contains(id)) {
+                        _cartTabSelectedIds[tabIdx].remove(id);
                       } else {
-                        _tabSelectedIds[1].add(id);
+                        _cartTabSelectedIds[tabIdx].add(id);
                       }
                     });
                   },

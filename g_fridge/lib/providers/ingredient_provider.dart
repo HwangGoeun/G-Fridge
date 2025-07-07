@@ -15,7 +15,7 @@ class IngredientProvider extends ChangeNotifier {
     if (_fridgeId == fridgeId && _ingredientSubscription != null) return;
     _fridgeId = fridgeId;
     _ingredientSubscription?.cancel();
-    print('[IngredientProvider] Start listening to fridge: $fridgeId');
+    // print('[IngredientProvider] Start listening to fridge: $fridgeId');
     _ingredientSubscription = _firestore
         .collection('fridges')
         .doc(_fridgeId)
@@ -24,15 +24,15 @@ class IngredientProvider extends ChangeNotifier {
         .snapshots()
         .listen((snapshot) {
       try {
-        print(
-            '[IngredientProvider] ingredients updated: ${snapshot.docs.length}');
+        // print(
+        //     '[IngredientProvider] ingredients updated: ${snapshot.docs.length}');
         _ingredients = snapshot.docs
             .map((doc) => Ingredient.fromFirestore(doc.data(), doc.id))
             .toList();
         notifyListeners();
       } catch (e, stack) {
-        print('[IngredientProvider] ERROR: $e');
-        print(stack);
+        // print('[IngredientProvider] ERROR: $e');
+        // print(stack);
       }
     });
   }

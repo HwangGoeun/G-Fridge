@@ -92,13 +92,13 @@ class FridgeProvider with ChangeNotifier {
 
   // 초기화
   Future<void> initialize() async {
-    print('[FridgeProvider] initialize() called');
+    // print('[FridgeProvider] initialize() called');
     final user = FirebaseAuth.instance.currentUser;
     _isUserReady = false;
     notifyListeners();
     try {
       if (user != null) {
-        print('[FridgeProvider] initialize: user is logged in');
+        // print('[FridgeProvider] initialize: user is logged in');
         listenToFridges(user.uid); // 실시간 구독 시작
         await initializeFromFirestore();
         if (_fridges.isEmpty) {
@@ -107,29 +107,29 @@ class FridgeProvider with ChangeNotifier {
       }
       await loadFridgeIngredients();
     } catch (e) {
-      print('[FridgeProvider] initialize error: $e');
+      // print('[FridgeProvider] initialize error: $e');
     } finally {
       _isUserReady = true;
-      print('[FridgeProvider] isUserReady = true (finally)');
+      // print('[FridgeProvider] isUserReady = true (finally)');
       notifyListeners();
     }
   }
 
   // 앱 실행/로그인 시 Firestore에서 닉네임, 냉장고, 재료 전체 fetch (닉네임만 준비되면 isUserReady true)
   Future<void> initializeFromFirestore() async {
-    print('[FridgeProvider] initializeFromFirestore() called');
+    // print('[FridgeProvider] initializeFromFirestore() called');
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      print('[FridgeProvider] Skipping Firestore fetch: user is null');
+      // print('[FridgeProvider] Skipping Firestore fetch: user is null');
       return;
     }
     try {
       await loadMyNickname();
       await fetchFridgesFromFirestore(user.uid);
-      print('[FridgeProvider] fetchFridgesFromFirestore finished');
+      // print('[FridgeProvider] fetchFridgesFromFirestore finished');
       await Future.wait(_fridges
           .map((fridge) => fetchIngredientsFromFirestore(user.uid, fridge.id)));
-      print('[FridgeProvider] fetchIngredientsFromFirestore finished');
+      // print('[FridgeProvider] fetchIngredientsFromFirestore finished');
       // 마이그레이션: 기존 냉장고 타입을 모두 '개인용'으로 변경
       bool migrated = false;
       for (var i = 0; i < _fridges.length; i++) {
@@ -144,7 +144,7 @@ class FridgeProvider with ChangeNotifier {
       // 반드시 동기화 후 notifyListeners
       notifyListeners();
     } catch (e) {
-      print('[FridgeProvider] Firestore fetch error: $e');
+      // print('[FridgeProvider] Firestore fetch error: $e');
     } finally {
       // do nothing here, isUserReady is handled by initialize
     }
@@ -251,7 +251,7 @@ class FridgeProvider with ChangeNotifier {
           notifyListeners();
         }
       } catch (e) {
-        print('[FridgeProvider] createDefaultFridge Firestore error: $e');
+        // print('[FridgeProvider] createDefaultFridge Firestore error: $e');
       }
     }
   }
@@ -264,8 +264,8 @@ class FridgeProvider with ChangeNotifier {
     if (_currentFridgeId.isNotEmpty) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        print(
-            '[addIngredientToCurrentFridge] user.uid=${user.uid}, fridgeId=$_currentFridgeId, ingredientId=${ingredient.id}');
+        // print(
+        //     '[addIngredientToCurrentFridge] user.uid=${user.uid}, fridgeId=$_currentFridgeId, ingredientId=${ingredient.id}');
         await saveIngredientToFirestore(user.uid, _currentFridgeId, ingredient);
         // Firestore에서 재료 목록을 다시 fetch해서 동기화
         await fetchIngredientsFromFirestore(user.uid, _currentFridgeId);
@@ -400,8 +400,8 @@ class FridgeProvider with ChangeNotifier {
           .collection('users')
           .doc(user.uid)
           .get();
-      print(
-          '[FridgeProvider] loadMyNickname: userDoc id=${doc.id}, data=${doc.data()}');
+      // print(
+      //     '[FridgeProvider] loadMyNickname: userDoc id=${doc.id}, data=${doc.data()}');
       final nickname = doc.data()?['nickname'];
       if (nickname == null || (nickname is String && nickname.isEmpty)) {
         final defaultNickname = generateDefaultNickname();
@@ -416,8 +416,8 @@ class FridgeProvider with ChangeNotifier {
         _myNickname = null;
       }
     } catch (e, stack) {
-      print('[FridgeProvider] loadMyNickname error: $e');
-      print(stack);
+      // print('[FridgeProvider] loadMyNickname error: $e');
+      // print(stack);
     } finally {
       _isUserReady = true;
       notifyListeners();
@@ -448,8 +448,8 @@ class FridgeProvider with ChangeNotifier {
   // Firestore에서 재료 목록 불러오기
   Future<void> fetchIngredientsFromFirestore(
       String uid, String fridgeId) async {
-    print(
-        '[FridgeProvider] fetchIngredientsFromFirestore() called for fridgeId=$fridgeId');
+    // print(
+    //     '[FridgeProvider] fetchIngredientsFromFirestore() called for fridgeId=$fridgeId');
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('fridges')
@@ -458,32 +458,32 @@ class FridgeProvider with ChangeNotifier {
           .get();
       final List<Ingredient> loadedIngredients = [];
       for (final doc in snapshot.docs) {
-        print(
-            '[FridgeProvider] Try parsing ingredient doc: id=${doc.id}, data=${doc.data()}');
+        // print(
+        //     '[FridgeProvider] Try parsing ingredient doc: id=${doc.id}, data=${doc.data()}');
         try {
           final ingredient = Ingredient.fromFirestore(doc.data(), doc.id);
           loadedIngredients.add(ingredient);
-          print(
-              '[FridgeProvider] Successfully parsed ingredient: id=${doc.id}');
+          // print(
+          //     '[FridgeProvider] Successfully parsed ingredient: id=${doc.id}');
         } catch (e, stack) {
-          print(
-              '[FridgeProvider] ERROR parsing ingredient: id=${doc.id}, error=$e');
-          print(stack);
+          // print(
+          //     '[FridgeProvider] ERROR parsing ingredient: id=${doc.id}, error=$e');
+          // print(stack);
         }
       }
       _fridgeIngredients[fridgeId] = loadedIngredients;
       notifyListeners();
     } catch (e) {
-      print('[FridgeProvider] fetchIngredientsFromFirestore error: $e');
+      // print('[FridgeProvider] fetchIngredientsFromFirestore error: $e');
     }
   }
 
   // Firestore에 재료 저장
   Future<void> saveIngredientToFirestore(
       String uid, String fridgeId, Ingredient ingredient) async {
-    print(
-        '[saveIngredientToFirestore] path=fridges/$fridgeId/ingredients/${ingredient.id}');
-    print('[saveIngredientToFirestore] data=${ingredient.toJson()}');
+    // print(
+    //     '[saveIngredientToFirestore] path=fridges/$fridgeId/ingredients/${ingredient.id}');
+    // print('[saveIngredientToFirestore] data=${ingredient.toJson()}');
     await FirebaseFirestore.instance
         .collection('fridges')
         .doc(fridgeId)
@@ -507,7 +507,7 @@ class FridgeProvider with ChangeNotifier {
 
   // Firestore에서 냉장고 전체 목록 불러오기 (내가 소유/참여한 것만)
   Future<void> fetchFridgesFromFirestore(String uid) async {
-    print('[FridgeProvider] fetchFridgesFromFirestore() called');
+    // print('[FridgeProvider] fetchFridgesFromFirestore() called');
     try {
       final userDoc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
@@ -524,8 +524,8 @@ class FridgeProvider with ChangeNotifier {
           .get();
       final List<Fridge> loadedFridges = [];
       for (final doc in fridgesSnapshot.docs) {
-        print(
-            '[FridgeProvider] Try parsing fridge doc: id=${doc.id}, data=${doc.data()}');
+        // print(
+        //     '[FridgeProvider] Try parsing fridge doc: id=${doc.id}, data=${doc.data()}');
         try {
           var fridge = Fridge.fromJson(doc.data());
           // sharedWith에 1명 이상 있으면 type을 '공유용'으로 강제
@@ -533,18 +533,18 @@ class FridgeProvider with ChangeNotifier {
             fridge = fridge.copyWith(type: '공유용');
           }
           loadedFridges.add(fridge);
-          print('[FridgeProvider] Successfully parsed fridge: id=${doc.id}');
+          // print('[FridgeProvider] Successfully parsed fridge: id=${doc.id}');
         } catch (e, stack) {
-          print(
-              '[FridgeProvider] ERROR parsing fridge: id=${doc.id}, error=$e');
-          print(stack);
+          // print(
+          //     '[FridgeProvider] ERROR parsing fridge: id=${doc.id}, error=$e');
+          // print(stack);
         }
       }
       // fridgeIds 배열 순서대로 정렬
       _fridges = fridgeIds
           .map((id) => loadedFridges.firstWhere((f) => f.id == id))
           .toList();
-      print('[FridgeProvider] _fridges.length = \\${_fridges.length}');
+      // print('[FridgeProvider] _fridges.length = \\${_fridges.length}');
       if (_fridges.isNotEmpty) {
         // 기존 선택값이 있으면 유지, 없으면 첫 번째로 변경
         if (!_fridges.any((f) => f.id == _currentFridgeId)) {
@@ -553,7 +553,7 @@ class FridgeProvider with ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print('[FridgeProvider] fetchFridgesFromFirestore error: $e');
+      // print('[FridgeProvider] fetchFridgesFromFirestore error: $e');
     }
   }
 
@@ -589,25 +589,25 @@ class FridgeProvider with ChangeNotifier {
     if (user == null) return false;
     try {
       final code = inviteCode.trim();
-      print('[joinFridgeByCode] 입력 코드: "$code"');
+      // print('[joinFridgeByCode] 입력 코드: "$code"');
       // inviteCodes 컬렉션에서 code로 쿼리
       final codeDoc = await FirebaseFirestore.instance
           .collection('inviteCodes')
           .doc(code)
           .get();
-      print('[joinFridgeByCode] codeDoc.exists: \\${codeDoc.exists}');
+      // print('[joinFridgeByCode] codeDoc.exists: \\${codeDoc.exists}');
       if (!codeDoc.exists) {
-        print('[joinFridgeByCode] 코드 문서 없음');
+        // print('[joinFridgeByCode] 코드 문서 없음');
         return false;
       }
       final data = codeDoc.data()!;
       final fridgeId = data['fridgeId'] as String?;
       final createdAt = data['createdAt'] as int?;
       final isValid = data['valid'] == true;
-      print(
-          '[joinFridgeByCode] fridgeId: \\${fridgeId?.toString() ?? 'null'}, createdAt: \\${createdAt?.toString() ?? 'null'}, valid: \\${isValid.toString()}');
+      // print(
+      //     '[joinFridgeByCode] fridgeId: \\${fridgeId?.toString() ?? 'null'}, createdAt: \\${createdAt?.toString() ?? 'null'}, valid: \\${isValid.toString()}');
       if (fridgeId == null || createdAt == null || !isValid) {
-        print('[joinFridgeByCode] fridgeId 또는 createdAt 없음, 또는 유효하지 않은 코드');
+        // print('[joinFridgeByCode] fridgeId 또는 createdAt 없음, 또는 유효하지 않은 코드');
         // 코드가 유효하지 않으면 삭제
         await codeDoc.reference.update({'valid': false, 'reason': 'invalid'});
         await codeDoc.reference.delete();
@@ -615,9 +615,9 @@ class FridgeProvider with ChangeNotifier {
       }
       const expire = Duration(days: 7);
       final now = DateTime.now().millisecondsSinceEpoch;
-      print('[joinFridgeByCode] now: $now, expire: \\${expire.inMilliseconds}');
+      // print('[joinFridgeByCode] now: $now, expire: \\${expire.inMilliseconds}');
       if (now - createdAt > expire.inMilliseconds) {
-        print('[joinFridgeByCode] 코드 만료됨');
+        // print('[joinFridgeByCode] 코드 만료됨');
         // 만료된 경우 valid를 false, reason을 'expired'로 업데이트 후 삭제
         await codeDoc.reference.update({'valid': false, 'reason': 'expired'});
         await codeDoc.reference.delete();
@@ -629,13 +629,13 @@ class FridgeProvider with ChangeNotifier {
           .doc(fridgeId)
           .get();
       if (!fridgeDoc.exists) {
-        print('[joinFridgeByCode] 냉장고 문서 없음');
+        // print('[joinFridgeByCode] 냉장고 문서 없음');
         return false;
       }
       final fridgeData = fridgeDoc.data()!;
       final sharedWith = List<String>.from(fridgeData['sharedWith'] ?? []);
       if (!sharedWith.contains(user.uid)) {
-        print('[joinFridgeByCode] sharedWith에 추가');
+        // print('[joinFridgeByCode] sharedWith에 추가');
         await fridgeDoc.reference.update({
           'sharedWith': FieldValue.arrayUnion([user.uid])
         });
@@ -647,15 +647,15 @@ class FridgeProvider with ChangeNotifier {
         }, SetOptions(merge: true));
       }
       // 초대코드 문서 삭제(1회용) 및 valid false, reason 'used'로 업데이트
-      print('[joinFridgeByCode] 코드 문서 삭제');
+      // print('[joinFridgeByCode] 코드 문서 삭제');
       await codeDoc.reference.update({'valid': false, 'reason': 'used'});
       await codeDoc.reference.delete();
       // 내 냉장고 목록 동기화
       await initializeFromFirestore();
-      print('[joinFridgeByCode] 참여 성공');
+      // print('[joinFridgeByCode] 참여 성공');
       return true;
     } catch (e) {
-      print('[joinFridgeByCode] error: $e');
+      // print('[joinFridgeByCode] error: $e');
       return false;
     }
   }
