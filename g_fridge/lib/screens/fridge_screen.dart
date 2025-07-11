@@ -2,24 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'add_ingredient_screen.dart'; // 나중에 생성할 재료 추가 화면 파일
 import 'shopping_cart_screen.dart'; // Import shopping cart screen
-import 'fridge_list_screen.dart'; // Import fridge list screen
 import '../models/ingredient.dart';
 import '../providers/ingredient_provider.dart';
 import '../providers/shopping_cart_provider.dart';
 import '../providers/fridge_provider.dart'; // Import FridgeProvider
-import 'edit_ingredient_screen.dart';
 import 'package:uuid/uuid.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'fridge_info_screen.dart'; // 냉장고 정보 화면 import
 import 'wish_list_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'login_screen.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'my_page_screen.dart';
 import 'add_fridge_screen.dart';
-import 'package:reorderables/reorderables.dart';
 import 'custom_tab_bar.dart';
 import '../models/fridge.dart';
 
@@ -216,14 +208,14 @@ class _FridgeScreenState extends State<FridgeScreen>
         setState(() {}); // 장바구니 탭의 서브탭 이동 시 앱바 갱신
       }
     });
-    // FridgeProvider 초기화
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Provider.of<FridgeProvider>(context, listen: false).initialize();
-      await Provider.of<FridgeProvider>(context, listen: false)
-          .initializeFromFirestore();
-      await Provider.of<FridgeProvider>(context, listen: false)
-          .loadMyNickname();
-    });
+    // // FridgeProvider 초기화
+    // WidgetsBinding.instance.addPostFrameCallback((_) async {
+    //   await Provider.of<FridgeProvider>(context, listen: false).initialize();
+    //   await Provider.of<FridgeProvider>(context, listen: false)
+    //       .initializeFromFirestore();
+    //   await Provider.of<FridgeProvider>(context, listen: false)
+    //       .loadMyNickname();
+    // });
     _tabController.addListener(() {
       if (mounted && _tabController.indexIsChanging == false) {
         setState(() {});
@@ -488,6 +480,7 @@ class _FridgeScreenState extends State<FridgeScreen>
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.grey[100], // 배경색을 더 밝은 회색으로
+      drawerEnableOpenDragGesture: false,
       drawer: Drawer(
         child: Consumer<FridgeProvider>(
           builder: (context, fridgeProvider, _) => Container(
@@ -728,6 +721,13 @@ class _FridgeScreenState extends State<FridgeScreen>
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black87,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          tooltip: '메뉴 열기',
+          onPressed: () {
+            _scaffoldKey.currentState?.openDrawer();
+          },
+        ),
         title: _selectedTabIndex == 0 && _selectionMode
             ? Row(
                 children: [

@@ -40,6 +40,20 @@ class _ShoppingCartScreenState extends State<ShoppingCartScreen>
     super.initState();
     _tabController =
         widget.tabController ?? TabController(length: 3, vsync: this);
+    _tabController!.addListener(_handleTabChange);
+  }
+
+  void _handleTabChange() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _tabController?.removeListener(_handleTabChange);
+    if (widget.tabController == null) {
+      _tabController?.dispose();
+    }
+    super.dispose();
   }
 
   @override

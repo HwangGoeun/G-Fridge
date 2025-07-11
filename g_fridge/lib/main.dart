@@ -10,10 +10,14 @@ import 'screens/auth_wrapper.dart';
 import 'firebase_options.dart';
 
 void main() async {
+  // print('main() called');
   WidgetsFlutterBinding.ensureInitialized();
+  // print('Firebase.apps before: ${Firebase.apps}');
   await Firebase.initializeApp(
+    name: 'Friendge-dev',
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // print('Firebase.apps after: ${Firebase.apps}');
   runApp(
     MultiProvider(
       providers: [
@@ -33,7 +37,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'G Fridge',
+      title: 'Friendge',
       theme: ThemeData(
         useMaterial3: true,
       ),

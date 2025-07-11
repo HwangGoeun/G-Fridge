@@ -599,7 +599,6 @@ class FridgeProvider with ChangeNotifier {
       final data = codeDoc.data()!;
       final fridgeId = data['fridgeId'] as String?;
       final createdAt = data['createdAt'] as int?;
-      final isValid = data['valid'] == true;
       final reason = data['reason']?.toString() ?? '';
       if (fridgeId == null || createdAt == null) {
         await codeDoc.reference.update({'valid': false, 'reason': 'invalid'});
@@ -611,16 +610,7 @@ class FridgeProvider with ChangeNotifier {
         await codeDoc.reference.update({'valid': false, 'reason': 'expired'});
         return {'result': 'expired', 'message': '초대코드가 만료되었습니다.'};
       }
-      if (!isValid) {
-        // 이미 사용됨, 만료됨, 기타
-        if (reason == 'expired') {
-          return {'result': 'expired', 'message': '초대코드가 만료되었습니다.'};
-        } else if (reason == 'used') {
-          return {'result': 'used', 'message': '이미 사용된 초대코드입니다.'};
-        } else {
-          return {'result': 'invalid', 'message': '유효하지 않은 초대코드입니다.'};
-        }
-      }
+      // 1주일 이내면 여러 번 사용 가능. valid, reason은 만료시에만 체크
       // 정상 참여 로직
       final fridgeDoc = await FirebaseFirestore.instance
           .collection('fridges')
@@ -640,8 +630,7 @@ class FridgeProvider with ChangeNotifier {
           'fridgeIds': FieldValue.arrayUnion([fridgeId])
         }, SetOptions(merge: true));
       }
-      // 초대코드 문서 삭제하지 않고 상태만 업데이트
-      await codeDoc.reference.update({'valid': false, 'reason': 'used'});
+      // 초대코드 상태 업데이트는 하지 않음(1주일 동안 계속 사용 가능)
       // 내 냉장고 목록 동기화
       await initializeFromFirestore();
       return {'result': 'success', 'message': '공유 냉장고에 참여했습니다!'};
@@ -700,5 +689,34 @@ class FridgeProvider with ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  // 공유 냉장고에서 나가기
+  Future<void> leaveSharedFridge(String fridgeId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // users/{uid} 문서의 fridgeIds 배열에서 fridgeId 제거
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'fridgeIds': FieldValue.arrayRemove([fridgeId])
+    });
+
+    // fridges/{fridgeId} 문서의 sharedWith 배열에서 내 uid 제거
+    await FirebaseFirestore.instance
+        .collection('fridges')
+        .doc(fridgeId)
+        .update({
+      'sharedWith': FieldValue.arrayRemove([user.uid])
+    });
+
+    // provider 내부 상태 동기화
+    _fridges.removeWhere((fridge) => fridge.id == fridgeId);
+    _fridgeIngredients.remove(fridgeId);
+    if (_currentFridgeId == fridgeId && _fridges.isNotEmpty) {
+      _currentFridgeId = _fridges.first.id;
+    } else if (_fridges.isEmpty) {
+      _currentFridgeId = '';
+    }
+    notifyListeners();
   }
 }
