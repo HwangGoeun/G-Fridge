@@ -57,6 +57,11 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^2.0.0
 
+  # The "flutter_launcher_icons" package below is used to generate app icons
+  # for different platforms. It can be used to set icons for Android, iOS,
+  # and web platforms.
+  flutter_launcher_icons: ^0.13.1
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -74,6 +79,8 @@ flutter:
     - assets/friendge_1.png
     - assets/friendge_1_short.png
     - assets/friendge_2.png
+    - assets/friendge_logo_1x1.png
+    - assets/friendge_logo_1x1_white.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
@@ -100,3 +107,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+
+  # The "flutter_launcher_icons" package below is used to generate app icons
+  # for different platforms. It can be used to set icons for Android, iOS,
+  # and web platforms.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "./assets/friendge_logo_1x1_white.png" # 원하는 로고 경로로 변경
