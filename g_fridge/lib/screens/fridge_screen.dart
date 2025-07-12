@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'add_ingredient_screen.dart'; // 나중에 생성할 재료 추가 화면 파일
 import 'shopping_cart_screen.dart'; // Import shopping cart screen
@@ -41,6 +43,11 @@ class IngredientCard extends StatelessWidget {
     this.checked = false,
     this.onCheckChanged,
   });
+
+  String formatDoubleIntl(double value) {
+    NumberFormat formatter = NumberFormat('0.##'); // 소수점 최대 2자리, 불필요한 0 생략
+    return formatter.format(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +95,7 @@ class IngredientCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     SizedBox(
-                      width: size.width * 0.3,
+                      width: size.width * 0.25,
                       child: Text(
                         ingredient.ingredientName,
                         style: const TextStyle(
@@ -100,10 +107,28 @@ class IngredientCard extends StatelessWidget {
                       ),
                     ),
                     if (!selectionMode)
-                      Text(
-                        '${ingredient.quantity}개',
-                        style: const TextStyle(
-                          fontSize: 13,
+                      SizedBox(
+                        width: size.width * 0.1,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                formatDoubleIntl(ingredient.quantity),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                ),
+                                textAlign: TextAlign.end,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const Text(
+                              '개',
+                              style: TextStyle(
+                                fontSize: 13,
+                              ),
+                            )
+                          ],
                         ),
                       ),
                   ],
@@ -1190,6 +1215,7 @@ class _EditFridgeIngredientDialogState
     extends State<_EditFridgeIngredientDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
+  late TextEditingController _quantityController;
   double _quantity = 1.0;
   StorageType _selectedStorageType = StorageType.refrigerated;
   DateTime? _selectedExpirationDate;
@@ -1206,6 +1232,7 @@ class _EditFridgeIngredientDialogState
     _nameController =
         TextEditingController(text: widget.ingredient.ingredientName);
     _quantity = widget.ingredient.quantity;
+    _quantityController = TextEditingController(text: _quantity.toString());
     _selectedStorageType = widget.ingredient.storageType;
     _selectedExpirationDate = widget.ingredient.expirationDate;
   }
@@ -1213,6 +1240,7 @@ class _EditFridgeIngredientDialogState
   @override
   void dispose() {
     _nameController.dispose();
+    _quantityController.dispose();
     super.dispose();
   }
 
@@ -1300,20 +1328,44 @@ class _EditFridgeIngredientDialogState
                       onPressed: () {
                         setState(() {
                           if (_quantity > 0.5) _quantity -= 0.5;
+                          _quantityController.text = _quantity.toString();
                         });
                       },
                     ),
                     Container(
-                      width: 50,
+                      width: 60,
                       alignment: Alignment.center,
-                      child: Text(_quantity.toString(),
-                          style: const TextStyle(fontSize: 16)),
+                      child: TextFormField(
+                        controller: _quantityController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 16),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        onChanged: (value) {
+                          double? newValue = double.tryParse(value);
+                          setState(() {
+                            if (newValue != null && newValue >= 0.5) {
+                              _quantity = newValue;
+                            } else if (newValue != null && newValue < 0.5) {
+                              _quantity = 0.5;
+                              _quantityController.text = '0.5';
+                            }
+                            // else: ignore invalid input
+                          });
+                        },
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.add_circle_outline),
                       onPressed: () {
                         setState(() {
                           _quantity += 0.5;
+                          _quantityController.text = _quantity.toString();
                         });
                       },
                     ),

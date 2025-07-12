@@ -181,21 +181,42 @@ class _AddIngredientScreenState extends State<AddIngredientScreen> {
                           Container(
                             width: 80,
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
+                                horizontal: 8, vertical: 0),
                             margin: const EdgeInsets.symmetric(horizontal: 16),
                             decoration: BoxDecoration(
                               color: Colors.blue[50],
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.blue[200]!),
                             ),
-                            child: Text(
-                              _quantity.toString(),
+                            child: TextFormField(
+                              initialValue: _quantity.toString(),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue[700],
                               ),
-                              textAlign: TextAlign.center,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding:
+                                    EdgeInsets.symmetric(vertical: 8),
+                              ),
+                              onChanged: (value) {
+                                double? newValue = double.tryParse(value);
+                                setState(() {
+                                  if (newValue != null && newValue >= 0.5) {
+                                    _quantity = newValue;
+                                  } else if (newValue != null &&
+                                      newValue < 0.5) {
+                                    _quantity = 0.5;
+                                  }
+                                  // else: ignore invalid input
+                                });
+                              },
                             ),
                           ),
                           Container(

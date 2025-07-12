@@ -252,6 +252,7 @@ class _EditCartIngredientDialog extends StatefulWidget {
 class _EditCartIngredientDialogState extends State<_EditCartIngredientDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
+  late TextEditingController _quantityController;
   double _quantity = 1.0;
   StorageType _selectedStorageType = StorageType.refrigerated;
 
@@ -267,12 +268,14 @@ class _EditCartIngredientDialogState extends State<_EditCartIngredientDialog> {
     _nameController =
         TextEditingController(text: widget.ingredient.ingredientName);
     _quantity = widget.ingredient.quantity;
+    _quantityController = TextEditingController(text: _quantity.toString());
     _selectedStorageType = widget.ingredient.storageType;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _quantityController.dispose();
     super.dispose();
   }
 
@@ -395,6 +398,8 @@ class _EditCartIngredientDialogState extends State<_EditCartIngredientDialog> {
                                 onPressed: () {
                                   setState(() {
                                     if (_quantity > 0.5) _quantity -= 0.5;
+                                    _quantityController.text =
+                                        _quantity.toString();
                                   });
                                 },
                               ),
@@ -402,7 +407,7 @@ class _EditCartIngredientDialogState extends State<_EditCartIngredientDialog> {
                             Container(
                               width: 80,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 8),
+                                  horizontal: 8, vertical: 0),
                               margin:
                                   const EdgeInsets.symmetric(horizontal: 16),
                               decoration: BoxDecoration(
@@ -410,14 +415,36 @@ class _EditCartIngredientDialogState extends State<_EditCartIngredientDialog> {
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.blue[200]!),
                               ),
-                              child: Text(
-                                _quantity.toString(),
+                              child: TextFormField(
+                                controller: _quantityController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.blue[700],
                                 ),
-                                textAlign: TextAlign.center,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding:
+                                      EdgeInsets.symmetric(vertical: 8),
+                                ),
+                                onChanged: (value) {
+                                  double? newValue = double.tryParse(value);
+                                  setState(() {
+                                    if (newValue != null && newValue >= 0.5) {
+                                      _quantity = newValue;
+                                    } else if (newValue != null &&
+                                        newValue < 0.5) {
+                                      _quantity = 0.5;
+                                      _quantityController.text = '0.5';
+                                    }
+                                    // else: ignore invalid input
+                                  });
+                                },
                               ),
                             ),
                             Container(
@@ -430,6 +457,8 @@ class _EditCartIngredientDialogState extends State<_EditCartIngredientDialog> {
                                 onPressed: () {
                                   setState(() {
                                     _quantity += 0.5;
+                                    _quantityController.text =
+                                        _quantity.toString();
                                   });
                                 },
                               ),
